@@ -43,32 +43,14 @@ async function seed() {
 
     console.log('✅ Created regular user:', regularUser.email);
 
-    // Create sample connectors
-    const serviceNowConnector = await prisma.tenantConnector.create({
-      data: {
-        name: 'ServiceNow Production',
-        connectorType: 'SERVICENOW',
-        config: {
-          instanceUrl: 'https://acme.service-now.com',
-          username: 'api_user',
-          password: 'encrypted_password',
-          apiVersion: 'v1',
-        },
-        tenantId: tenant.id,
-        status: 'ACTIVE',
-      },
-    });
-
-    console.log('✅ Created ServiceNow connector:', serviceNowConnector.name);
-
+    // Create sample connectors - Only Freshservice (Phase 4 implementation)
     const freshserviceConnector = await prisma.tenantConnector.create({
       data: {
-        name: 'Freshservice Production',
+        name: 'Freshservice',
         connectorType: 'FRESHSERVICE',
         config: {
-          domain: 'acme.freshservice.com',
-          apiKey: 'encrypted_api_key',
-          apiVersion: 'v2',
+          domain: 'antidote.freshservice.com',
+          apiKey: 'Xz4UPeyEbZxdRTitRI2N',
         },
         tenantId: tenant.id,
         status: 'ACTIVE',
@@ -77,27 +59,14 @@ async function seed() {
 
     console.log('✅ Created Freshservice connector:', freshserviceConnector.name);
 
-    const zendeskConnector = await prisma.tenantConnector.create({
-      data: {
-        name: 'Zendesk Support',
-        connectorType: 'ZENDESK',
-        config: {
-          subdomain: 'acme',
-          email: 'api@acme-corp.com',
-          token: 'encrypted_token',
-        },
-        tenantId: tenant.id,
-        status: 'ACTIVE',
-      },
-    });
+    // Note: ServiceNow and Zendesk connectors removed in Phase 4
+    // They will be re-added when their implementations are complete
 
-    console.log('✅ Created Zendesk connector:', zendeskConnector.name);
-
-    // Create sample job
+    // Create sample job (using only Freshservice as both source and destination for demo)
     const sampleJob = await prisma.job.create({
       data: {
         tenantId: tenant.id,
-        sourceConnectorId: serviceNowConnector.id,
+        sourceConnectorId: freshserviceConnector.id,
         destinationConnectorId: freshserviceConnector.id,
         entities: ['tickets', 'users'],
         options: {
@@ -129,10 +98,10 @@ async function seed() {
         tenantId: tenant.id,
         entityType: 'tickets',
         batchNumber: 1,
-        sourceSystem: 'servicenow',
+        sourceSystem: 'freshservice',
         rawData: [
           {
-            id: 'INC0000001',
+            id: 'FS0000001',
             title: 'Email server down',
             description: 'Users cannot access email',
             status: 'resolved',
@@ -140,7 +109,7 @@ async function seed() {
             createdAt: '2024-01-15T10:00:00Z',
           },
           {
-            id: 'INC0000002',
+            id: 'FS0000002',
             title: 'Printer not working',
             description: 'Office printer is offline',
             status: 'open',
@@ -150,7 +119,7 @@ async function seed() {
         ],
         transformedData: [
           {
-            id: 'INC0000001',
+            id: 'FS0000001',
             title: 'Email server down',
             description: 'Users cannot access email',
             status: 'resolved',
@@ -161,7 +130,7 @@ async function seed() {
             targetFormat: 'FRESHSERVICE',
           },
           {
-            id: 'INC0000002',
+            id: 'FS0000002',
             title: 'Printer not working',
             description: 'Office printer is offline',
             status: 'open',
