@@ -1,0 +1,160 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User and tenant management
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users      User[]
+  connectors TenantConnector[]
+  jobs       Job[]
+
+  @@map("tenants")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  firstName String?
+  lastName  String?
+  role      UserRole @default(USER)
+  tenantId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+// Connector management
+model TenantConnector {
+  id            String          @id @default(cuid())
+  tenantId      String
+  connectorType ConnectorType
+  name          String // Customer label: "Production FreshService"
+  config        Json // Encrypted connector-specific configuration
+  status        ConnectorStatus @default(ACTIVE)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  // Relations
+  tenant           Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sourceJobs       Job[]  @relation("SourceConnector")
+  destinationJobs  Job[]  @relation("DestinationConnector")
+
+  @@unique([tenantId, name])
+  @@map("tenant_connectors")
+}
+
+enum ConnectorType {
+  FRESHSERVICE
+  SERVICENOW
+  ZENDESK
+}
+
+enum ConnectorStatus {
+  ACTIVE
+  DISABLED
+  ERROR
+}
+
+// Job management
+model Job {
+  id                    String    @id @default(cuid())
+  tenantId              String
+  sourceConnectorId     String
+  destinationConnectorId String?
+  entities              String[] // ["tickets", "assets", "users"]
+  options               Json // Migration options (batch size, date ranges, etc.)
+  status                JobStatus @default(QUEUED)
+  progress              Json? // Current progress data
+  error                 String?
+  startedAt             DateTime?
+  completedAt           DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  // Relations
+  tenant              Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sourceConnector     TenantConnector @relation("SourceConnector", fields: [sourceConnectorId], references: [id])
+  destinationConnector TenantConnector? @relation("DestinationConnector", fields: [destinationConnectorId], references: [id])
+  extractedData       JobExtractedData[]
+
+  @@map("jobs")
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  EXTRACTING
+  DATA_READY
+  LOADING
+  COMPLETED
+  FAILED
+}
+
+// Extracted data storage for CSV export and validation
+model JobExtractedData {
+  id                   String   @id @default(cuid())
+  jobId                String
+  tenantId             String
+  entityType           String // tickets, assets, users, incidents
+  batchNumber          Int
+  sourceSystem         String // freshservice, servicenow, zendesk
+  rawData              Json // Original API response data
+  transformedData      Json // Processed data ready for destination
+  recordCount          Int
+  extractionTimestamp  DateTime
+  expiresAt            DateTime
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  job         Job             @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  loadResults JobLoadResult[]
+
+  @@index([jobId, entityType])
+  @@index([tenantId, expiresAt])
+  @@map("job_extracted_data")
+}
+
+// Loading results and audit trail
+model JobLoadResult {
+  id                   String   @id @default(cuid())
+  jobExtractedDataId   String
+  destinationSystem    String // Target system where data was loaded
+  successCount         Int
+  failedCount          Int
+  errorDetails         Json? // Specific error information per failed record
+  retryCount           Int      @default(0)
+  loadedAt             DateTime
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  extractedData JobExtractedData @relation(fields: [jobExtractedDataId], references: [id], onDelete: Cascade)
+
+  @@map("job_load_results")
+} 
