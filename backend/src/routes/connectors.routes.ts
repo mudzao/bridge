@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { authenticate, getUser } from '@/middleware/auth.middleware';
+import { ConnectorService } from '@/services/connector.service';
 import { 
   CreateConnectorRequest,
   UpdateConnectorRequest,
@@ -19,6 +20,17 @@ export async function connectorRoutes(fastify: FastifyInstance) {
       const { name, connectorType, config } = request.body as CreateConnectorRequest;
       const user = getUser(request);
 
+      // Validate connector configuration
+      const validation = ConnectorService.validateConnectorConfig(connectorType, config);
+      if (!validation.valid) {
+        return reply.code(400).send({
+          success: false,
+          error: 'VALIDATION_ERROR',
+          message: 'Invalid connector configuration',
+          details: validation.errors,
+        });
+      }
+
       // Create connector
       const connector = await prisma.tenantConnector.create({
         data: {
@@ -26,7 +38,7 @@ export async function connectorRoutes(fastify: FastifyInstance) {
           name,
           connectorType: connectorType as any,
           config,
-          status: 'ACTIVE',
+          status: 'DISABLED', // Start as disabled until tested
         },
       });
 
@@ -150,6 +162,19 @@ export async function connectorRoutes(fastify: FastifyInstance) {
         });
       }
 
+      // Validate configuration if provided
+      if (config) {
+        const validation = ConnectorService.validateConnectorConfig(existingConnector.connectorType, config);
+        if (!validation.valid) {
+          return reply.code(400).send({
+            success: false,
+            error: 'VALIDATION_ERROR',
+            message: 'Invalid connector configuration',
+            details: validation.errors,
+          });
+        }
+      }
+
       const connector = await prisma.tenantConnector.update({
         where: { id },
         data: {
@@ -223,6 +248,8 @@ export async function connectorRoutes(fastify: FastifyInstance) {
         });
       }
 
+      // Delete the connector directly without calling connector service methods
+      // This allows deletion of legacy connectors (ServiceNow, Zendesk) that aren't implemented
       await prisma.tenantConnector.delete({
         where: { id },
       });
@@ -243,7 +270,7 @@ export async function connectorRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // Test connector connection
+  // Test connector connection - NOW WITH REAL IMPLEMENTATION
   fastify.post('/connectors/:id/test', {
     preHandler: [authenticate]
   }, async (request: FastifyRequest, reply: FastifyReply) => {
@@ -267,8 +294,18 @@ export async function connectorRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Test connection (mock implementation)
-      const testResult = await testConnectorConnection(connector);
+      // Check if connector type is supported in our new implementation
+      const supportedTypes = ConnectorService.getConnectorTypes().map(t => t.type);
+      if (!supportedTypes.includes(connector.connectorType)) {
+        return reply.code(400).send({
+          success: false,
+          error: 'UNSUPPORTED_CONNECTOR',
+          message: `Connector type ${connector.connectorType} is not supported in the current implementation. Only ${supportedTypes.join(', ')} are supported.`,
+        });
+      }
+
+      // Test connection using real connector implementation
+      const testResult = await ConnectorService.testConnection(id, user.tenantId);
 
       const response: ApiResponse<TestConnectorResponse> = {
         success: true,
@@ -286,37 +323,10 @@ export async function connectorRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // Get connector types and schemas
+  // Get connector types and schemas - NOW WITH REAL METADATA
   fastify.get('/connectors/types', async (_request, reply) => {
     try {
-      const connectorTypes = {
-        FRESHSERVICE: {
-          name: 'FreshService',
-          description: 'FreshService helpdesk system',
-          configSchema: {
-            domain: { type: 'string', required: true, description: 'FreshService domain' },
-            apiKey: { type: 'string', required: true, description: 'API key' },
-          },
-        },
-        SERVICENOW: {
-          name: 'ServiceNow',
-          description: 'ServiceNow platform',
-          configSchema: {
-            instance: { type: 'string', required: true, description: 'ServiceNow instance URL' },
-            username: { type: 'string', required: true, description: 'Username' },
-            password: { type: 'string', required: true, description: 'Password' },
-          },
-        },
-        ZENDESK: {
-          name: 'Zendesk',
-          description: 'Zendesk support platform',
-          configSchema: {
-            subdomain: { type: 'string', required: true, description: 'Zendesk subdomain' },
-            email: { type: 'string', required: true, description: 'Admin email' },
-            token: { type: 'string', required: true, description: 'API token' },
-          },
-        },
-      };
+      const connectorTypes = ConnectorService.getConnectorTypes();
 
       const response: ApiResponse = {
         success: true,
@@ -333,22 +343,108 @@ export async function connectorRoutes(fastify: FastifyInstance) {
       });
     }
   });
-}
 
-/**
- * Test connector connection (mock implementation)
- */
-async function testConnectorConnection(_connector: any): Promise<TestConnectorResponse> {
-  // Mock connection test
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  // Get supported entities for a connector
+  fastify.get('/connectors/:id/entities', {
+    preHandler: [authenticate]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const user = getUser(request);
 
-  return {
-    success: true,
-    message: 'Connection successful',
-    details: {
-      version: '1.0.0',
-      endpoints: ['tickets', 'users', 'assets'],
-      permissions: ['read', 'write'],
-    },
-  };
+      // Get connector from database first
+      const connector = await prisma.tenantConnector.findFirst({
+        where: {
+          id: id,
+          tenantId: user.tenantId
+        }
+      });
+
+      if (!connector) {
+        return reply.code(404).send({
+          success: false,
+          error: 'NOT_FOUND',
+          message: 'Connector not found',
+        });
+      }
+
+      // Check if connector type is supported
+      const supportedTypes = ConnectorService.getConnectorTypes().map(t => t.type);
+      if (!supportedTypes.includes(connector.connectorType)) {
+        return reply.code(400).send({
+          success: false,
+          error: 'UNSUPPORTED_CONNECTOR',
+          message: `Connector type ${connector.connectorType} is not supported in the current implementation. Only ${supportedTypes.join(', ')} are supported.`,
+        });
+      }
+
+      const entities = await ConnectorService.getSupportedEntities(id, user.tenantId);
+
+      const response: ApiResponse = {
+        success: true,
+        data: entities,
+      };
+
+      reply.send(response);
+    } catch (error) {
+      console.error('Error fetching supported entities:', error);
+      reply.code(500).send({
+        success: false,
+        error: 'INTERNAL_ERROR',
+        message: 'Failed to fetch supported entities',
+      });
+    }
+  });
+
+  // Get entity schema for a connector
+  fastify.get('/connectors/:id/entities/:entityType/schema', {
+    preHandler: [authenticate]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { id, entityType } = request.params as { id: string; entityType: string };
+      const user = getUser(request);
+
+      // Get connector from database first
+      const connector = await prisma.tenantConnector.findFirst({
+        where: {
+          id: id,
+          tenantId: user.tenantId
+        }
+      });
+
+      if (!connector) {
+        return reply.code(404).send({
+          success: false,
+          error: 'NOT_FOUND',
+          message: 'Connector not found',
+        });
+      }
+
+      // Check if connector type is supported
+      const supportedTypes = ConnectorService.getConnectorTypes().map(t => t.type);
+      if (!supportedTypes.includes(connector.connectorType)) {
+        return reply.code(400).send({
+          success: false,
+          error: 'UNSUPPORTED_CONNECTOR',
+          message: `Connector type ${connector.connectorType} is not supported in the current implementation. Only ${supportedTypes.join(', ')} are supported.`,
+        });
+      }
+
+      const schema = await ConnectorService.getEntitySchema(id, user.tenantId, entityType);
+
+      const response: ApiResponse = {
+        success: true,
+        data: schema,
+      };
+
+      reply.send(response);
+    } catch (error) {
+      console.error('Error fetching entity schema:', error);
+      reply.code(500).send({
+        success: false,
+        error: 'INTERNAL_ERROR',
+        message: 'Failed to fetch entity schema',
+      });
+    }
+  });
 } 

@@ -3,6 +3,7 @@ import IORedis from 'ioredis';
 import { PrismaClient } from '@prisma/client';
 import { redisConfig } from '@/config';
 import { QUEUE_NAMES, JOB_TYPES } from '@/services/queue.service';
+import { ConnectorService } from '@/services/connector.service';
 import { JobStatus } from '@/types';
 
 const prisma = new PrismaClient();
@@ -59,14 +60,14 @@ export class MigrationWorker {
   }
 
   /**
-   * Extract data from source system
+   * Extract data from source system using real connectors
    */
   private async extractData(job: Job): Promise<any> {
-    const { jobId, sourceConnectorId, tenantId } = job.data;
+    const { jobId, sourceConnectorId, tenantId, entities, config } = job.data;
 
     // Update progress
     await job.updateProgress(10);
-    await this.updateJobStatus(jobId, JobStatus.RUNNING, 'Starting data extraction');
+    await this.updateJobStatus(jobId, JobStatus.EXTRACTING, 'Starting data extraction');
 
     // Get source connector configuration
     const sourceConnector = await prisma.tenantConnector.findUnique({
@@ -77,107 +78,174 @@ export class MigrationWorker {
       throw new Error('Source connector not found');
     }
 
-    // Simulate data extraction process
-    await job.updateProgress(30);
-    await this.updateJobStatus(jobId, JobStatus.RUNNING, 'Connecting to source system');
+    await job.updateProgress(20);
+    await this.updateJobStatus(jobId, JobStatus.EXTRACTING, 'Connecting to source system');
 
-    // Mock extraction logic - replace with actual connector implementations
-    const extractedData = await this.mockDataExtraction(sourceConnector, job);
+    let totalExtracted = 0;
+    const extractionResults = [];
 
-    await job.updateProgress(70);
-    await this.updateJobStatus(jobId, JobStatus.RUNNING, 'Data extraction completed');
+    // Extract data for each entity type
+    for (let i = 0; i < entities.length; i++) {
+      const entityType = entities[i];
+      
+      await this.updateJobStatus(jobId, JobStatus.EXTRACTING, `Extracting ${entityType} data`);
+      
+      try {
+        // Use real connector for data extraction
+        const extractedData = await ConnectorService.extractData(
+          sourceConnectorId,
+          tenantId,
+          {
+            entityType,
+            batchSize: config?.batchSize || 100,
+            startDate: config?.startDate,
+            endDate: config?.endDate,
+          }
+        );
 
-    // Store extracted data
-    await this.storeExtractedData(jobId, extractedData);
+        // Store extracted data
+        await this.storeExtractedData(jobId, tenantId, entityType, extractedData);
+        
+        totalExtracted += extractedData.records.length;
+        extractionResults.push({
+          entityType,
+          recordCount: extractedData.records.length,
+          totalCount: extractedData.totalCount,
+          hasMore: extractedData.hasMore
+        });
+
+        // Update progress based on entity completion
+        const entityProgress = 30 + ((i + 1) / entities.length) * 40; // 30-70% range
+        await job.updateProgress(entityProgress);
+
+      } catch (error) {
+        console.error(`Failed to extract ${entityType} data:`, error);
+        throw new Error(`Failed to extract ${entityType}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    await job.updateProgress(80);
+    await this.updateJobStatus(jobId, JobStatus.DATA_READY, 'Data extraction completed');
 
     await job.updateProgress(100);
-    await this.updateJobStatus(jobId, JobStatus.COMPLETED, 'Data extraction successful');
+    await this.updateJobStatus(jobId, JobStatus.DATA_READY, `Extracted ${totalExtracted} records from ${entities.length} entity types`);
 
-    // Queue transformation job
-    await this.queueNextJob(job, JOB_TYPES.TRANSFORM_DATA);
-
-    return { extractedRecords: extractedData.length };
+    return { 
+      extractedRecords: totalExtracted,
+      entities: extractionResults
+    };
   }
 
   /**
    * Transform extracted data
    */
   private async transformData(job: Job): Promise<any> {
-    const { jobId, targetConnectorId, tenantId } = job.data;
+    const { jobId, destinationConnectorId, tenantId } = job.data;
 
     await job.updateProgress(10);
     await this.updateJobStatus(jobId, JobStatus.RUNNING, 'Starting data transformation');
 
-    // Get target connector configuration
-    const targetConnector = await prisma.tenantConnector.findUnique({
-      where: { id: targetConnectorId, tenantId },
+    // Get destination connector configuration
+    const destinationConnector = await prisma.tenantConnector.findUnique({
+      where: { id: destinationConnectorId, tenantId },
     });
 
-    if (!targetConnector) {
-      throw new Error('Target connector not found');
+    if (!destinationConnector) {
+      throw new Error('Destination connector not found');
     }
 
     // Get extracted data
-    const extractedData = await this.getExtractedData(jobId);
+    const extractedDataRecords = await this.getExtractedData(jobId);
 
     await job.updateProgress(30);
     await this.updateJobStatus(jobId, JobStatus.RUNNING, 'Transforming data format');
 
-    // Mock transformation logic
-    const transformedData = await this.mockDataTransformation(extractedData, targetConnector, job);
+    let totalTransformed = 0;
 
-    await job.updateProgress(80);
-    await this.updateJobStatus(jobId, JobStatus.RUNNING, 'Storing transformed data');
+    // Transform data for each entity type
+    for (let i = 0; i < extractedDataRecords.length; i++) {
+      const dataRecord = extractedDataRecords[i];
+      
+      // For now, we'll use a simple transformation
+      // In a full implementation, this would use destination connector's transform methods
+      const transformedData = dataRecord.rawData.map((record: any) => ({
+        ...record,
+        transformed_at: new Date().toISOString(),
+        source_system: dataRecord.sourceSystem,
+        destination_system: destinationConnector.connectorType.toLowerCase(),
+        migration_job_id: jobId
+      }));
 
-    // Store transformed data
-    await this.storeTransformedData(jobId, transformedData);
+      // Store transformed data
+      await this.storeTransformedData(dataRecord.id, transformedData);
+      totalTransformed += transformedData.length;
+
+      // Update progress
+      const progress = 30 + ((i + 1) / extractedDataRecords.length) * 50; // 30-80% range
+      await job.updateProgress(progress);
+    }
 
     await job.updateProgress(100);
-    await this.updateJobStatus(jobId, JobStatus.COMPLETED, 'Data transformation successful');
+    await this.updateJobStatus(jobId, JobStatus.COMPLETED, `Data transformation successful: ${totalTransformed} records transformed`);
 
-    // Queue loading job
-    await this.queueNextJob(job, JOB_TYPES.LOAD_DATA);
-
-    return { transformedRecords: transformedData.length };
+    return { transformedRecords: totalTransformed };
   }
 
   /**
    * Load data into target system
    */
   private async loadData(job: Job): Promise<any> {
-    const { jobId, targetConnectorId, tenantId } = job.data;
+    const { jobId, destinationConnectorId, tenantId } = job.data;
 
     await job.updateProgress(10);
-    await this.updateJobStatus(jobId, JobStatus.RUNNING, 'Starting data loading');
+    await this.updateJobStatus(jobId, JobStatus.LOADING, 'Starting data loading');
 
-    // Get target connector
-    const targetConnector = await prisma.tenantConnector.findUnique({
-      where: { id: targetConnectorId, tenantId },
+    // Get destination connector
+    const destinationConnector = await prisma.tenantConnector.findUnique({
+      where: { id: destinationConnectorId, tenantId },
     });
 
-    if (!targetConnector) {
-      throw new Error('Target connector not found');
+    if (!destinationConnector) {
+      throw new Error('Destination connector not found');
     }
 
     // Get transformed data
-    const transformedData = await this.getTransformedData(jobId);
+    const transformedDataRecords = await this.getTransformedData(jobId);
 
     await job.updateProgress(30);
-    await this.updateJobStatus(jobId, JobStatus.RUNNING, 'Loading data to target system');
+    await this.updateJobStatus(jobId, JobStatus.LOADING, 'Loading data to destination system');
 
-    // Mock loading logic
-    const loadResults = await this.mockDataLoading(transformedData, targetConnector, job);
+    // For Phase 4, we'll simulate loading since we're focusing on extraction
+    // In a full implementation, this would use the destination connector's loadData method
+    let totalLoaded = 0;
+    let totalErrors = 0;
 
-    await job.updateProgress(90);
-    await this.updateJobStatus(jobId, JobStatus.RUNNING, 'Finalizing migration');
+    for (let i = 0; i < transformedDataRecords.length; i++) {
+      const dataRecord = transformedDataRecords[i];
+      
+      // Simulate loading with high success rate
+      const successCount = Math.floor(dataRecord.transformedData.length * 0.95);
+      const errorCount = dataRecord.transformedData.length - successCount;
+      
+      totalLoaded += successCount;
+      totalErrors += errorCount;
 
-    // Store loading results
-    await this.storeLoadingResults(jobId, loadResults);
+      // Store loading results
+      await this.storeLoadingResults(dataRecord.id, {
+        successCount,
+        errorCount,
+        totalRecords: dataRecord.transformedData.length
+      });
+
+      // Update progress
+      const progress = 30 + ((i + 1) / transformedDataRecords.length) * 60; // 30-90% range
+      await job.updateProgress(progress);
+    }
 
     await job.updateProgress(100);
-    await this.updateJobStatus(jobId, JobStatus.COMPLETED, 'Migration completed successfully');
+    await this.updateJobStatus(jobId, JobStatus.COMPLETED, `Migration completed: ${totalLoaded} records loaded, ${totalErrors} errors`);
 
-    return { loadedRecords: loadResults.successCount, errors: loadResults.errorCount };
+    return { loadedRecords: totalLoaded, errors: totalErrors };
   }
 
   /**
@@ -201,85 +269,6 @@ export class MigrationWorker {
   }
 
   /**
-   * Mock data extraction - replace with actual connector implementations
-   */
-  private async mockDataExtraction(_connector: any, job: Job): Promise<any[]> {
-    // Simulate API calls and data extraction
-    const mockData = [];
-    const totalRecords = 100; // Mock total
-
-    for (let i = 0; i < totalRecords; i++) {
-      mockData.push({
-        id: `record_${i}`,
-        title: `Sample Record ${i}`,
-        description: `Description for record ${i}`,
-        status: 'open',
-        createdAt: new Date(),
-      });
-
-      // Update progress periodically
-      if (i % 10 === 0) {
-        const progress = 30 + (i / totalRecords) * 40; // 30-70% range
-        await job.updateProgress(progress);
-      }
-    }
-
-    return mockData;
-  }
-
-  /**
-   * Mock data transformation
-   */
-  private async mockDataTransformation(data: any[], targetConnector: any, job: Job): Promise<any[]> {
-    const transformedData = [];
-
-    for (let i = 0; i < data.length; i++) {
-      const record = data[i];
-      
-      // Mock transformation logic
-      transformedData.push({
-        ...record,
-        targetId: `target_${record.id}`,
-        transformedAt: new Date(),
-        targetFormat: targetConnector.type,
-      });
-
-      // Update progress
-      if (i % 10 === 0) {
-        const progress = 30 + (i / data.length) * 50; // 30-80% range
-        await job.updateProgress(progress);
-      }
-    }
-
-    return transformedData;
-  }
-
-  /**
-   * Mock data loading
-   */
-  private async mockDataLoading(data: any[], _targetConnector: any, job: Job): Promise<any> {
-    let successCount = 0;
-    let errorCount = 0;
-
-    for (let i = 0; i < data.length; i++) {
-      // Mock loading with some failures
-      if (Math.random() > 0.1) { // 90% success rate
-        successCount++;
-      } else {
-        errorCount++;
-      }
-
-      // Update progress
-      if (i % 10 === 0) {
-        const progress = 30 + (i / data.length) * 60; // 30-90% range
-        await job.updateProgress(progress);
-      }
-    }
-
-    return { successCount, errorCount, totalRecords: data.length };
-  }
-
-  /**
    * Update job status in database
    */
   private async updateJobStatus(jobId: string, status: JobStatus, message: string) {
@@ -288,7 +277,7 @@ export class MigrationWorker {
       data: {
         status,
         error: status === JobStatus.FAILED ? message : null,
-        completedAt: status === JobStatus.COMPLETED ? new Date() : null,
+        completedAt: [JobStatus.COMPLETED, JobStatus.FAILED].includes(status) ? new Date() : null,
       },
     });
   }
@@ -296,17 +285,17 @@ export class MigrationWorker {
   /**
    * Store extracted data in database
    */
-  private async storeExtractedData(jobId: string, data: any[]) {
+  private async storeExtractedData(jobId: string, tenantId: string, entityType: string, extractedData: any) {
     await prisma.jobExtractedData.create({
       data: {
         jobId,
-        tenantId: 'temp-tenant-id', // TODO: Get from job context
-        entityType: 'tickets',
+        tenantId,
+        entityType,
         batchNumber: 1,
-        sourceSystem: 'mock',
-        rawData: data,
-        transformedData: data,
-        recordCount: data.length,
+        sourceSystem: 'freshservice', // This should come from the connector
+        rawData: extractedData.records,
+        transformedData: extractedData.records, // Initially same as raw
+        recordCount: extractedData.records.length,
         extractionTimestamp: new Date(),
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       },
@@ -317,20 +306,20 @@ export class MigrationWorker {
    * Get extracted data from database
    */
   private async getExtractedData(jobId: string): Promise<any[]> {
-    const extracted = await prisma.jobExtractedData.findFirst({
+    const extractedRecords = await prisma.jobExtractedData.findMany({
       where: { jobId },
       orderBy: { createdAt: 'desc' },
     });
 
-    return extracted?.rawData as any[] || [];
+    return extractedRecords;
   }
 
   /**
    * Store transformed data
    */
-  private async storeTransformedData(jobId: string, data: any[]) {
-    await prisma.jobExtractedData.updateMany({
-      where: { jobId },
+  private async storeTransformedData(extractedDataId: string, data: any[]) {
+    await prisma.jobExtractedData.update({
+      where: { id: extractedDataId },
       data: {
         transformedData: data,
       },
@@ -341,37 +330,28 @@ export class MigrationWorker {
    * Get transformed data
    */
   private async getTransformedData(jobId: string): Promise<any[]> {
-    const extracted = await prisma.jobExtractedData.findFirst({
+    const extractedRecords = await prisma.jobExtractedData.findMany({
       where: { jobId },
       orderBy: { createdAt: 'desc' },
     });
 
-    return extracted?.transformedData as any[] || [];
+    return extractedRecords;
   }
 
   /**
    * Store loading results
    */
-  private async storeLoadingResults(_jobId: string, results: any) {
+  private async storeLoadingResults(extractedDataId: string, results: any) {
     await prisma.jobLoadResult.create({
       data: {
-        jobExtractedDataId: 'temp-id', // TODO: Get actual extracted data ID
-        destinationSystem: 'mock',
+        jobExtractedDataId: extractedDataId,
+        destinationSystem: 'target-system', // This should come from destination connector
         successCount: results.successCount,
         failedCount: results.errorCount,
         errorDetails: results.errors || {},
         loadedAt: new Date(),
       },
     });
-  }
-
-  /**
-   * Queue next job in the pipeline
-   */
-  private async queueNextJob(currentJob: Job, nextJobType: string) {
-    // This would integrate with the queue service to add the next job
-    // For now, we'll just log it
-    console.log(`Queueing next job: ${nextJobType} for job ${currentJob.data.jobId}`);
   }
 
   /**

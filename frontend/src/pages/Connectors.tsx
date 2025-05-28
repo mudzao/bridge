@@ -16,6 +16,8 @@ import {
   Save
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useToast } from '@/hooks/useToast';
+import { ToastContainer } from '@/components/ui/Toast';
 
 interface Connector {
   id: string;
@@ -56,6 +58,7 @@ export const Connectors: React.FC = () => {
   const [testingConnector, setTestingConnector] = useState<string | null>(null);
   const [editingConnector, setEditingConnector] = useState<Connector | null>(null);
   const queryClient = useQueryClient();
+  const { toasts, showSuccess, showError, removeToast } = useToast();
 
   // Fetch connectors
   const { data: connectorsResponse, isLoading, error } = useQuery({
@@ -181,13 +184,18 @@ export const Connectors: React.FC = () => {
   const handleTestConnection = async (connectorId: string) => {
     try {
       const result = await testConnectorMutation.mutateAsync(connectorId);
-      if (result.success) {
-        alert('Connection test successful!');
+      if (result.data && result.data.success) {
+        showSuccess('Connection test successful!');
       } else {
-        alert('Connection test failed: ' + result.message);
+        showError('Connection test failed: ' + (result.data?.message || result.message || 'Unknown error'));
       }
-    } catch (error) {
-      alert('Connection test failed: ' + (error as Error).message);
+    } catch (error: any) {
+      // Show backend error message if available
+      if (error?.response?.data?.message) {
+        showError('Connection test failed: ' + error.response.data.message);
+      } else {
+        showError('Connection test failed: ' + (error.message || 'Unknown error'));
+      }
     }
   };
 
@@ -227,9 +235,9 @@ export const Connectors: React.FC = () => {
         },
       });
       
-      alert('Connector updated successfully!');
+      showSuccess('Connector updated successfully!');
     } catch (error) {
-      alert('Failed to update connector: ' + (error as Error).message);
+      showError('Failed to update connector: ' + (error as Error).message);
     }
   };
 
@@ -237,9 +245,9 @@ export const Connectors: React.FC = () => {
     if (window.confirm(`Are you sure you want to delete the connector "${connectorName}"?`)) {
       try {
         await deleteConnectorMutation.mutateAsync(connectorId);
-        alert('Connector deleted successfully');
+        showSuccess('Connector deleted successfully');
       } catch (error) {
-        alert('Failed to delete connector: ' + (error as Error).message);
+        showError('Failed to delete connector: ' + (error as Error).message);
       }
     }
   };
@@ -249,11 +257,9 @@ export const Connectors: React.FC = () => {
 
     return (
       <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-        <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="relative top-20 mx-auto p-5 border w-[500px] shadow-lg rounded-md bg-white">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium text-gray-900">
-              Edit {editingConnector.connectorType} Connector
-            </h3>
+            <h3 className="text-lg font-medium text-gray-900">Edit Connector</h3>
             <button
               onClick={() => {
                 setEditingConnector(null);
@@ -264,7 +270,7 @@ export const Connectors: React.FC = () => {
               <X className="w-5 h-5" />
             </button>
           </div>
-
+          <div className="mb-4">{getStatusBadge(editingConnector.status)}</div>
           <form onSubmit={handleSubmit(handleSaveConnector)} className="space-y-4">
             {/* Common fields */}
             <div>
@@ -287,6 +293,7 @@ export const Connectors: React.FC = () => {
               >
                 <option value="ACTIVE">Active</option>
                 <option value="DISABLED">Disabled</option>
+                <option value="ERROR" disabled>Error</option>
               </select>
               {errors.status && (
                 <p className="mt-1 text-sm text-red-600">{errors.status.message as string}</p>
@@ -483,6 +490,9 @@ export const Connectors: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
