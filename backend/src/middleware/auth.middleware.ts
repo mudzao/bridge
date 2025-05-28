@@ -1,136 +1,115 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { authService } from '@/services/auth.service';
-import { AuthenticationError, AuthorizationError } from '@/types';
+import { AuthenticationError } from '@/types';
 
-// Extend FastifyRequest to include user context
-declare module 'fastify' {
-  interface FastifyRequest {
-    user?: {
-      userId: string;
-      tenantId: string;
-      role: string;
-    };
-  }
+// Define our user type
+interface AuthUser {
+  userId: string;
+  tenantId: string;
+  role: string;
 }
 
 /**
  * Authentication middleware - verifies JWT token and sets user context
  */
-export async function authenticateUser(
-  request: FastifyRequest,
-  reply: FastifyReply
-) {
+export const authenticate = async (request: FastifyRequest, _reply: FastifyReply) => {
   try {
-    // Get token from Authorization header
     const authHeader = request.headers.authorization;
+    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new AuthenticationError('Authorization token required');
+      throw new AuthenticationError('Missing or invalid authorization header');
     }
 
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-
-    // Verify JWT token using Fastify JWT
-    const decoded = request.server.jwt.verify(token);
+    const token = authHeader.substring(7);
     
-    // Validate payload structure
-    const payload = authService.validateJwtPayload(decoded);
-
-    // Set user context on request
-    request.user = {
+    // Use Fastify's JWT verification
+    const payload = request.server.jwt.verify(token) as any;
+    
+    // Set user on request with proper typing
+    (request as any).user = {
       userId: payload.userId,
       tenantId: payload.tenantId,
       role: payload.role,
     };
-
   } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return reply.status(401).send({
-        error: 'Authentication Error',
-        message: error.message,
-        statusCode: 401,
-      });
-    }
-
-    // JWT verification errors
-    return reply.status(401).send({
-      error: 'Authentication Error',
-      message: 'Invalid or expired token',
-      statusCode: 401,
-    });
+    throw new AuthenticationError('Invalid or expired token');
   }
-}
+};
+
+// Alias for backward compatibility
+export const authenticateUser = authenticate;
 
 /**
  * Authorization middleware - checks user roles
  */
-export function requireRole(allowedRoles: string[]) {
-  return async function(request: FastifyRequest, reply: FastifyReply) {
-    if (!request.user) {
-      return reply.status(401).send({
-        error: 'Authentication Error',
-        message: 'User context not found',
-        statusCode: 401,
-      });
+export const authorize = (allowedRoles: string[]) => {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUser;
+    
+    if (!user) {
+      throw new AuthenticationError('Authentication required');
     }
 
-    if (!allowedRoles.includes(request.user.role)) {
-      return reply.status(403).send({
-        error: 'Authorization Error',
+    if (!allowedRoles.includes(user.role)) {
+      reply.code(403).send({
+        success: false,
+        error: 'FORBIDDEN',
         message: 'Insufficient permissions',
-        statusCode: 403,
       });
+      return;
     }
   };
-}
+};
 
 /**
  * Admin-only middleware
  */
-export const requireAdmin = requireRole(['ADMIN']);
+export const requireAdmin = authorize(['ADMIN']);
 
 /**
  * Tenant isolation middleware - ensures users can only access their tenant's data
  */
-export function requireTenantAccess(tenantIdParam: string = 'tenantId') {
-  return async function(request: FastifyRequest, reply: FastifyReply) {
-    if (!request.user) {
-      return reply.status(401).send({
-        error: 'Authentication Error',
-        message: 'User context not found',
-        statusCode: 401,
-      });
+export const requireTenantAccess = (tenantId?: string) => {
+  return async (request: FastifyRequest) => {
+    const user = (request as any).user as AuthUser;
+    
+    if (!user) {
+      throw new AuthenticationError('Authentication required');
     }
 
-    // Get tenant ID from request params or body
-    const requestTenantId = (request.params as any)[tenantIdParam] || 
-                           (request.body as any)?.[tenantIdParam];
+    // Check if request includes tenant-specific data
+    const requestTenantId = 
+      tenantId ||
+      (request.params as any)?.tenantId || 
+      (request.body as any)?.tenantId ||
+      (request.query as any)?.tenantId;
 
-    // If tenant ID is specified in request, verify it matches user's tenant
-    if (requestTenantId && requestTenantId !== request.user.tenantId) {
-      return reply.status(403).send({
-        error: 'Authorization Error',
-        message: 'Access denied to this tenant',
-        statusCode: 403,
-      });
+    if (requestTenantId && requestTenantId !== user.tenantId) {
+      throw new AuthenticationError('Access denied to tenant resources');
     }
+
+    return user;
   };
-}
+};
+
+// Helper to get user from request
+export const getUser = (request: FastifyRequest): AuthUser => {
+  return (request as any).user as AuthUser;
+};
 
 /**
  * Optional authentication - sets user context if token is present but doesn't require it
  */
 export async function optionalAuth(
   request: FastifyRequest,
-  reply: FastifyReply
+  _reply: FastifyReply
 ) {
   try {
     const authHeader = request.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      const decoded = request.server.jwt.verify(token);
-      const payload = authService.validateJwtPayload(decoded);
+      const payload = request.server.jwt.verify(token) as any;
 
-      request.user = {
+      (request as any).user = {
         userId: payload.userId,
         tenantId: payload.tenantId,
         role: payload.role,

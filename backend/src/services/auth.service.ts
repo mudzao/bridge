@@ -47,7 +47,7 @@ export class AuthService {
    */
   private parseExpiresIn(expiresIn: string): number {
     const match = expiresIn.match(/^(\d+)([smhd])$/);
-    if (!match) return 7 * 24 * 60 * 60; // Default 7 days
+    if (!match || !match[1]) return 7 * 24 * 60 * 60; // Default 7 days
 
     const value = parseInt(match[1]);
     const unit = match[2];
@@ -103,8 +103,8 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
         role: user.role,
         tenantId: user.tenantId,
       },
@@ -197,8 +197,8 @@ export class AuthService {
       data: {
         email: email.toLowerCase(),
         password: hashedPassword,
-        firstName,
-        lastName,
+        firstName: firstName || null,
+        lastName: lastName || null,
         role,
         tenantId,
       },

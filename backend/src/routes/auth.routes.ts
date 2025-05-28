@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { authService } from '@/services/auth.service';
-import { authenticateUser } from '@/middleware/auth.middleware';
+import { authenticateUser, getUser } from '@/middleware/auth.middleware';
 import { 
   LoginRequest, 
   ApiResponse, 
@@ -53,15 +53,8 @@ export async function authRoutes(fastify: FastifyInstance) {
     preHandler: [authenticateUser],
   }, async (request, reply) => {
     try {
-      if (!request.user) {
-        return reply.status(401).send({
-          success: false,
-          error: 'Authentication Error',
-          message: 'User context not found',
-        });
-      }
-
-      const user = await authService.getUserById(request.user.userId);
+      const userContext = getUser(request);
+      const user = await authService.getUserById(userContext.userId);
       
       const response: ApiResponse = {
         success: true,
@@ -85,16 +78,10 @@ export async function authRoutes(fastify: FastifyInstance) {
     preHandler: [authenticateUser],
   }, async (request, reply) => {
     try {
-      if (!request.user) {
-        return reply.status(401).send({
-          success: false,
-          error: 'Authentication Error',
-          message: 'User context not found',
-        });
-      }
-
+      const userContext = getUser(request);
+      
       // Get fresh user data
-      const user = await authService.getUserById(request.user.userId);
+      const user = await authService.getUserById(userContext.userId);
       
       // Create new token with fresh data
       const newToken = fastify.jwt.sign({
@@ -127,7 +114,7 @@ export async function authRoutes(fastify: FastifyInstance) {
   // Logout endpoint (client-side token removal)
   fastify.post('/logout', {
     preHandler: [authenticateUser],
-  }, async (request, reply) => {
+  }, async (_request, reply) => {
     // Since we're using stateless JWT, logout is handled client-side
     // This endpoint exists for consistency and potential future token blacklisting
     

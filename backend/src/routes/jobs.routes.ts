@@ -1,12 +1,13 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
-import { authenticateUser, requireTenantAccess } from '@/middleware/auth.middleware';
+import { authenticateUser, requireTenantAccess, getUser } from '@/middleware/auth.middleware';
 import { queueService } from '@/services/queue.service';
 import { 
   CreateJobRequest, 
   ApiResponse, 
   ValidationError,
-  NotFoundError 
+  NotFoundError,
+  JobStatus
 } from '@/types';
 
 const prisma = new PrismaClient();
@@ -19,38 +20,36 @@ export async function jobRoutes(fastify: FastifyInstance) {
     preHandler: [authenticateUser, requireTenantAccess()],
   }, async (request, reply) => {
     try {
-      const { sourceConnectorId, targetConnectorId, name, description } = request.body;
-      const { userId, tenantId } = request.user!;
+      const { sourceConnectorId, targetConnectorId, entities, options } = request.body;
+      const user = getUser(request);
 
       // Validate connectors exist and belong to tenant
       const [sourceConnector, targetConnector] = await Promise.all([
-        prisma.connector.findUnique({
-          where: { id: sourceConnectorId, tenantId },
+        prisma.tenantConnector.findUnique({
+          where: { id: sourceConnectorId, tenantId: user.tenantId },
         }),
-        prisma.connector.findUnique({
-          where: { id: targetConnectorId, tenantId },
-        }),
+        targetConnectorId ? prisma.tenantConnector.findUnique({
+          where: { id: targetConnectorId, tenantId: user.tenantId },
+        }) : null,
       ]);
 
       if (!sourceConnector) {
         throw new NotFoundError('Source connector not found');
       }
 
-      if (!targetConnector) {
+      if (targetConnectorId && !targetConnector) {
         throw new NotFoundError('Target connector not found');
       }
 
       // Create job record
       const job = await prisma.job.create({
         data: {
-          name,
-          description,
           sourceConnectorId,
-          targetConnectorId,
-          tenantId,
-          userId,
-          status: 'PENDING',
-          statusMessage: 'Job created, waiting to start',
+          destinationConnectorId: targetConnectorId || null,
+          entities,
+          options,
+          tenantId: user.tenantId,
+          status: JobStatus.QUEUED,
         },
       });
 
@@ -58,8 +57,8 @@ export async function jobRoutes(fastify: FastifyInstance) {
       await queueService.addMigrationJob({
         ...request.body,
         jobId: job.id,
-        tenantId,
-        userId,
+        tenantId: user.tenantId,
+        userId: user.userId,
       });
 
       const response: ApiResponse = {
@@ -92,19 +91,16 @@ export async function jobRoutes(fastify: FastifyInstance) {
     preHandler: [authenticateUser],
   }, async (request, reply) => {
     try {
-      const { tenantId } = request.user!;
+      const user = getUser(request);
 
       const jobs = await prisma.job.findMany({
-        where: { tenantId },
+        where: { tenantId: user.tenantId },
         include: {
           sourceConnector: {
-            select: { id: true, name: true, type: true },
+            select: { id: true, name: true, connectorType: true },
           },
-          targetConnector: {
-            select: { id: true, name: true, type: true },
-          },
-          user: {
-            select: { id: true, firstName: true, lastName: true, email: true },
+          destinationConnector: {
+            select: { id: true, name: true, connectorType: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -135,18 +131,14 @@ export async function jobRoutes(fastify: FastifyInstance) {
   }, async (request, reply) => {
     try {
       const { jobId } = request.params;
-      const { tenantId } = request.user!;
+      const user = getUser(request);
 
       const job = await prisma.job.findUnique({
-        where: { id: jobId, tenantId },
+        where: { id: jobId, tenantId: user.tenantId },
         include: {
           sourceConnector: true,
-          targetConnector: true,
-          user: {
-            select: { id: true, firstName: true, lastName: true, email: true },
-          },
+          destinationConnector: true,
           extractedData: true,
-          loadingResults: true,
         },
       });
 
@@ -193,12 +185,12 @@ export async function jobRoutes(fastify: FastifyInstance) {
   }, async (request, reply) => {
     try {
       const { jobId } = request.params;
-      const { tenantId } = request.user!;
+      const user = getUser(request);
 
       // Verify job belongs to tenant
       const job = await prisma.job.findUnique({
-        where: { id: jobId, tenantId },
-        select: { id: true, status: true, statusMessage: true },
+        where: { id: jobId, tenantId: user.tenantId },
+        select: { id: true, status: true, progress: true },
       });
 
       if (!job) {
@@ -213,8 +205,7 @@ export async function jobRoutes(fastify: FastifyInstance) {
         data: {
           jobId,
           status: job.status,
-          statusMessage: job.statusMessage,
-          progress: queueStatus?.progress || 0,
+          progress: job.progress || {},
           queueInfo: queueStatus,
         },
         message: 'Job progress retrieved successfully',
@@ -247,18 +238,18 @@ export async function jobRoutes(fastify: FastifyInstance) {
   }, async (request, reply) => {
     try {
       const { jobId } = request.params;
-      const { tenantId } = request.user!;
+      const user = getUser(request);
 
       // Verify job belongs to tenant and can be cancelled
       const job = await prisma.job.findUnique({
-        where: { id: jobId, tenantId },
+        where: { id: jobId, tenantId: user.tenantId },
       });
 
       if (!job) {
         throw new NotFoundError('Job not found');
       }
 
-      if (['COMPLETED', 'FAILED', 'CANCELLED'].includes(job.status)) {
+      if ([JobStatus.COMPLETED, JobStatus.FAILED].includes(job.status as JobStatus)) {
         throw new ValidationError('Job cannot be cancelled in current status');
       }
 
@@ -266,8 +257,8 @@ export async function jobRoutes(fastify: FastifyInstance) {
       await prisma.job.update({
         where: { id: jobId },
         data: {
-          status: 'CANCELLED',
-          statusMessage: 'Job cancelled by user',
+          status: JobStatus.FAILED, // Use FAILED instead of CANCELLED since it's not in enum
+          error: 'Job cancelled by user',
           updatedAt: new Date(),
         },
       });
@@ -303,15 +294,14 @@ export async function jobRoutes(fastify: FastifyInstance) {
     preHandler: [authenticateUser],
   }, async (request, reply) => {
     try {
-      const { tenantId } = request.user!;
+      const user = getUser(request);
 
       // Get job counts by status
-      const [pending, running, completed, failed, cancelled] = await Promise.all([
-        prisma.job.count({ where: { tenantId, status: 'PENDING' } }),
-        prisma.job.count({ where: { tenantId, status: 'RUNNING' } }),
-        prisma.job.count({ where: { tenantId, status: 'COMPLETED' } }),
-        prisma.job.count({ where: { tenantId, status: 'FAILED' } }),
-        prisma.job.count({ where: { tenantId, status: 'CANCELLED' } }),
+      const [queued, running, completed, failed] = await Promise.all([
+        prisma.job.count({ where: { tenantId: user.tenantId, status: JobStatus.QUEUED } }),
+        prisma.job.count({ where: { tenantId: user.tenantId, status: JobStatus.RUNNING } }),
+        prisma.job.count({ where: { tenantId: user.tenantId, status: JobStatus.COMPLETED } }),
+        prisma.job.count({ where: { tenantId: user.tenantId, status: JobStatus.FAILED } }),
       ]);
 
       // Get queue statistics
@@ -321,12 +311,11 @@ export async function jobRoutes(fastify: FastifyInstance) {
         success: true,
         data: {
           jobCounts: {
-            pending,
+            queued,
             running,
             completed,
             failed,
-            cancelled,
-            total: pending + running + completed + failed + cancelled,
+            total: queued + running + completed + failed,
           },
           queueStats,
         },

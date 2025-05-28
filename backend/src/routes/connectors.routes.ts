@@ -1,42 +1,32 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PrismaClient } from '@prisma/client';
-import { authenticateUser, requireTenantAccess } from '@/middleware/auth.middleware';
+import { authenticate, getUser } from '@/middleware/auth.middleware';
 import { 
-  CreateConnectorRequest, 
+  CreateConnectorRequest,
   UpdateConnectorRequest,
-  ApiResponse, 
-  ValidationError,
-  NotFoundError 
+  TestConnectorResponse,
+  ApiResponse 
 } from '@/types';
 
 const prisma = new PrismaClient();
 
 export async function connectorRoutes(fastify: FastifyInstance) {
-  // Create a new connector
-  fastify.post<{
-    Body: CreateConnectorRequest;
-  }>('/connectors', {
-    preHandler: [authenticateUser, requireTenantAccess()],
-  }, async (request, reply) => {
+  // Create connector
+  fastify.post('/connectors', {
+    preHandler: [authenticate]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { name, type, configuration, description } = request.body;
-      const { tenantId } = request.user!;
-
-      // Validate connector type
-      const validTypes = ['SERVICENOW', 'FRESHSERVICE', 'ZENDESK'];
-      if (!validTypes.includes(type)) {
-        throw new ValidationError('Invalid connector type');
-      }
+      const { name, connectorType, config } = request.body as CreateConnectorRequest;
+      const user = getUser(request);
 
       // Create connector
-      const connector = await prisma.connector.create({
+      const connector = await prisma.tenantConnector.create({
         data: {
+          tenantId: user.tenantId,
           name,
-          type,
-          configuration: JSON.stringify(configuration),
-          description,
-          tenantId,
-          isActive: true,
+          connectorType: connectorType as any,
+          config,
+          status: 'ACTIVE',
         },
       });
 
@@ -44,140 +34,128 @@ export async function connectorRoutes(fastify: FastifyInstance) {
         success: true,
         data: {
           ...connector,
-          configuration: JSON.parse(connector.configuration),
+          config: JSON.parse(JSON.stringify(connector.config)),
         },
         message: 'Connector created successfully',
       };
 
-      return reply.status(201).send(response);
+      reply.send(response);
     } catch (error) {
-      if (error instanceof ValidationError) {
-        return reply.status(error.statusCode).send({
-          success: false,
-          error: error.name,
-          message: error.message,
-        });
-      }
-
-      fastify.log.error('Create connector error:', error);
-      return reply.status(500).send({
+      console.error('Error creating connector:', error);
+      reply.code(500).send({
         success: false,
-        error: 'Internal Server Error',
+        error: 'INTERNAL_ERROR',
         message: 'Failed to create connector',
       });
     }
   });
 
-  // Get all connectors for tenant
+  // Get all connectors
   fastify.get('/connectors', {
-    preHandler: [authenticateUser],
-  }, async (request, reply) => {
+    preHandler: [authenticate]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { tenantId } = request.user!;
+      const user = getUser(request);
 
-      const connectors = await prisma.connector.findMany({
-        where: { tenantId },
+      const connectors = await prisma.tenantConnector.findMany({
+        where: { tenantId: user.tenantId },
         orderBy: { createdAt: 'desc' },
       });
 
-      // Parse configuration JSON for each connector
       const connectorsWithParsedConfig = connectors.map(connector => ({
         ...connector,
-        configuration: JSON.parse(connector.configuration),
+        config: JSON.parse(JSON.stringify(connector.config)),
       }));
 
       const response: ApiResponse = {
         success: true,
         data: connectorsWithParsedConfig,
-        message: 'Connectors retrieved successfully',
       };
 
-      return reply.status(200).send(response);
+      reply.send(response);
     } catch (error) {
-      fastify.log.error('Get connectors error:', error);
-      return reply.status(500).send({
+      console.error('Error fetching connectors:', error);
+      reply.code(500).send({
         success: false,
-        error: 'Internal Server Error',
-        message: 'Failed to retrieve connectors',
+        error: 'INTERNAL_ERROR',
+        message: 'Failed to fetch connectors',
       });
     }
   });
 
-  // Get specific connector by ID
-  fastify.get<{
-    Params: { connectorId: string };
-  }>('/connectors/:connectorId', {
-    preHandler: [authenticateUser, requireTenantAccess()],
-  }, async (request, reply) => {
+  // Get connector by ID
+  fastify.get('/connectors/:id', {
+    preHandler: [authenticate]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { connectorId } = request.params;
-      const { tenantId } = request.user!;
+      const { id } = request.params as { id: string };
+      const user = getUser(request);
 
-      const connector = await prisma.connector.findUnique({
-        where: { id: connectorId, tenantId },
+      const connector = await prisma.tenantConnector.findUnique({
+        where: { 
+          id,
+          tenantId: user.tenantId,
+        },
       });
 
       if (!connector) {
-        throw new NotFoundError('Connector not found');
+        return reply.code(404).send({
+          success: false,
+          error: 'NOT_FOUND',
+          message: 'Connector not found',
+        });
       }
 
       const response: ApiResponse = {
         success: true,
         data: {
           ...connector,
-          configuration: JSON.parse(connector.configuration),
+          config: JSON.parse(JSON.stringify(connector.config)),
         },
-        message: 'Connector retrieved successfully',
       };
 
-      return reply.status(200).send(response);
+      reply.send(response);
     } catch (error) {
-      if (error instanceof NotFoundError) {
-        return reply.status(error.statusCode).send({
-          success: false,
-          error: error.name,
-          message: error.message,
-        });
-      }
-
-      fastify.log.error('Get connector error:', error);
-      return reply.status(500).send({
+      console.error('Error fetching connector:', error);
+      reply.code(500).send({
         success: false,
-        error: 'Internal Server Error',
-        message: 'Failed to retrieve connector',
+        error: 'INTERNAL_ERROR',
+        message: 'Failed to fetch connector',
       });
     }
   });
 
   // Update connector
-  fastify.put<{
-    Params: { connectorId: string };
-    Body: UpdateConnectorRequest;
-  }>('/connectors/:connectorId', {
-    preHandler: [authenticateUser, requireTenantAccess()],
-  }, async (request, reply) => {
+  fastify.put('/connectors/:id', {
+    preHandler: [authenticate]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { connectorId } = request.params;
-      const { tenantId } = request.user!;
-      const { name, configuration, description, isActive } = request.body;
+      const { id } = request.params as { id: string };
+      const user = getUser(request);
+      const { name, config, status } = request.body as UpdateConnectorRequest;
 
-      // Verify connector exists and belongs to tenant
-      const existingConnector = await prisma.connector.findUnique({
-        where: { id: connectorId, tenantId },
+      // Check if connector exists and belongs to user's tenant
+      const existingConnector = await prisma.tenantConnector.findUnique({
+        where: { 
+          id,
+          tenantId: user.tenantId,
+        },
       });
 
       if (!existingConnector) {
-        throw new NotFoundError('Connector not found');
+        return reply.code(404).send({
+          success: false,
+          error: 'NOT_FOUND',
+          message: 'Connector not found',
+        });
       }
 
-      // Update connector
-      const connector = await prisma.connector.update({
-        where: { id: connectorId },
+      const connector = await prisma.tenantConnector.update({
+        where: { id },
         data: {
           ...(name && { name }),
-          ...(configuration && { configuration: JSON.stringify(configuration) }),
-          ...(description !== undefined && { description }),
-          ...(isActive !== undefined && { isActive }),
+          ...(config && { config }),
+          ...(status && { status: status as any }),
           updatedAt: new Date(),
         },
       });
@@ -186,67 +164,67 @@ export async function connectorRoutes(fastify: FastifyInstance) {
         success: true,
         data: {
           ...connector,
-          configuration: JSON.parse(connector.configuration),
+          config: JSON.parse(JSON.stringify(connector.config)),
         },
         message: 'Connector updated successfully',
       };
 
-      return reply.status(200).send(response);
+      reply.send(response);
     } catch (error) {
-      if (error instanceof NotFoundError) {
-        return reply.status(error.statusCode).send({
-          success: false,
-          error: error.name,
-          message: error.message,
-        });
-      }
-
-      fastify.log.error('Update connector error:', error);
-      return reply.status(500).send({
+      console.error('Error updating connector:', error);
+      reply.code(500).send({
         success: false,
-        error: 'Internal Server Error',
+        error: 'INTERNAL_ERROR',
         message: 'Failed to update connector',
       });
     }
   });
 
   // Delete connector
-  fastify.delete<{
-    Params: { connectorId: string };
-  }>('/connectors/:connectorId', {
-    preHandler: [authenticateUser, requireTenantAccess()],
-  }, async (request, reply) => {
+  fastify.delete('/connectors/:id', {
+    preHandler: [authenticate]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { connectorId } = request.params;
-      const { tenantId } = request.user!;
+      const { id } = request.params as { id: string };
+      const user = getUser(request);
 
-      // Verify connector exists and belongs to tenant
-      const connector = await prisma.connector.findUnique({
-        where: { id: connectorId, tenantId },
-      });
-
-      if (!connector) {
-        throw new NotFoundError('Connector not found');
-      }
-
-      // Check if connector is used in any jobs
-      const jobsUsingConnector = await prisma.job.count({
-        where: {
-          OR: [
-            { sourceConnectorId: connectorId },
-            { targetConnectorId: connectorId },
-          ],
-          status: { in: ['PENDING', 'RUNNING'] },
+      // Check if connector exists and belongs to user's tenant
+      const connector = await prisma.tenantConnector.findUnique({
+        where: { 
+          id,
+          tenantId: user.tenantId,
         },
       });
 
-      if (jobsUsingConnector > 0) {
-        throw new ValidationError('Cannot delete connector with active jobs');
+      if (!connector) {
+        return reply.code(404).send({
+          success: false,
+          error: 'NOT_FOUND',
+          message: 'Connector not found',
+        });
       }
 
-      // Delete connector
-      await prisma.connector.delete({
-        where: { id: connectorId },
+      // Check if connector is being used by any jobs
+      const activeJobs = await prisma.job.findMany({
+        where: {
+          OR: [
+            { sourceConnectorId: id },
+            { destinationConnectorId: id },
+          ],
+          status: { in: ['QUEUED', 'RUNNING'] },
+        },
+      });
+
+      if (activeJobs.length > 0) {
+        return reply.code(400).send({
+          success: false,
+          error: 'CONNECTOR_IN_USE',
+          message: 'Cannot delete connector with active jobs',
+        });
+      }
+
+      await prisma.tenantConnector.delete({
+        where: { id },
       });
 
       const response: ApiResponse = {
@@ -254,143 +232,123 @@ export async function connectorRoutes(fastify: FastifyInstance) {
         message: 'Connector deleted successfully',
       };
 
-      return reply.status(200).send(response);
+      reply.send(response);
     } catch (error) {
-      if (error instanceof ValidationError || error instanceof NotFoundError) {
-        return reply.status(error.statusCode).send({
-          success: false,
-          error: error.name,
-          message: error.message,
-        });
-      }
-
-      fastify.log.error('Delete connector error:', error);
-      return reply.status(500).send({
+      console.error('Error deleting connector:', error);
+      reply.code(500).send({
         success: false,
-        error: 'Internal Server Error',
+        error: 'INTERNAL_ERROR',
         message: 'Failed to delete connector',
       });
     }
   });
 
   // Test connector connection
-  fastify.post<{
-    Params: { connectorId: string };
-  }>('/connectors/:connectorId/test', {
-    preHandler: [authenticateUser, requireTenantAccess()],
-  }, async (request, reply) => {
+  fastify.post('/connectors/:id/test', {
+    preHandler: [authenticate]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { connectorId } = request.params;
-      const { tenantId } = request.user!;
+      const { id } = request.params as { id: string };
+      const user = getUser(request);
 
       // Get connector
-      const connector = await prisma.connector.findUnique({
-        where: { id: connectorId, tenantId },
+      const connector = await prisma.tenantConnector.findUnique({
+        where: { 
+          id,
+          tenantId: user.tenantId,
+        },
       });
 
       if (!connector) {
-        throw new NotFoundError('Connector not found');
-      }
-
-      // Mock connection test - replace with actual connector testing
-      const testResult = await this.testConnectorConnection(connector);
-
-      const response: ApiResponse = {
-        success: true,
-        data: testResult,
-        message: 'Connector test completed',
-      };
-
-      return reply.status(200).send(response);
-    } catch (error) {
-      if (error instanceof NotFoundError) {
-        return reply.status(error.statusCode).send({
+        return reply.code(404).send({
           success: false,
-          error: error.name,
-          message: error.message,
+          error: 'NOT_FOUND',
+          message: 'Connector not found',
         });
       }
 
-      fastify.log.error('Test connector error:', error);
-      return reply.status(500).send({
+      // Test connection (mock implementation)
+      const testResult = await testConnectorConnection(connector);
+
+      const response: ApiResponse<TestConnectorResponse> = {
+        success: true,
+        data: testResult,
+      };
+
+      reply.send(response);
+    } catch (error) {
+      console.error('Error testing connector:', error);
+      reply.code(500).send({
         success: false,
-        error: 'Internal Server Error',
+        error: 'INTERNAL_ERROR',
         message: 'Failed to test connector',
       });
     }
   });
 
-  // Get connector types and their configuration schemas
-  fastify.get('/connectors/types', async (request, reply) => {
+  // Get connector types and schemas
+  fastify.get('/connectors/types', async (_request, reply) => {
     try {
-      const connectorTypes = [
-        {
-          type: 'SERVICENOW',
+      const connectorTypes = {
+        FRESHSERVICE: {
+          name: 'FreshService',
+          description: 'FreshService helpdesk system',
+          configSchema: {
+            domain: { type: 'string', required: true, description: 'FreshService domain' },
+            apiKey: { type: 'string', required: true, description: 'API key' },
+          },
+        },
+        SERVICENOW: {
           name: 'ServiceNow',
-          description: 'ServiceNow IT Service Management platform',
-          configurationSchema: {
-            instanceUrl: { type: 'string', required: true, description: 'ServiceNow instance URL' },
-            username: { type: 'string', required: true, description: 'Username for authentication' },
-            password: { type: 'string', required: true, description: 'Password for authentication' },
-            apiVersion: { type: 'string', required: false, description: 'API version (default: v1)' },
+          description: 'ServiceNow platform',
+          configSchema: {
+            instance: { type: 'string', required: true, description: 'ServiceNow instance URL' },
+            username: { type: 'string', required: true, description: 'Username' },
+            password: { type: 'string', required: true, description: 'Password' },
           },
         },
-        {
-          type: 'FRESHSERVICE',
-          name: 'Freshservice',
-          description: 'Freshservice IT Service Management platform',
-          configurationSchema: {
-            domain: { type: 'string', required: true, description: 'Freshservice domain' },
-            apiKey: { type: 'string', required: true, description: 'API key for authentication' },
-            apiVersion: { type: 'string', required: false, description: 'API version (default: v2)' },
-          },
-        },
-        {
-          type: 'ZENDESK',
+        ZENDESK: {
           name: 'Zendesk',
-          description: 'Zendesk customer service platform',
-          configurationSchema: {
+          description: 'Zendesk support platform',
+          configSchema: {
             subdomain: { type: 'string', required: true, description: 'Zendesk subdomain' },
-            email: { type: 'string', required: true, description: 'Email for authentication' },
+            email: { type: 'string', required: true, description: 'Admin email' },
             token: { type: 'string', required: true, description: 'API token' },
           },
         },
-      ];
+      };
 
       const response: ApiResponse = {
         success: true,
         data: connectorTypes,
-        message: 'Connector types retrieved successfully',
       };
 
-      return reply.status(200).send(response);
+      reply.send(response);
     } catch (error) {
-      fastify.log.error('Get connector types error:', error);
-      return reply.status(500).send({
+      console.error('Error fetching connector types:', error);
+      reply.code(500).send({
         success: false,
-        error: 'Internal Server Error',
-        message: 'Failed to retrieve connector types',
+        error: 'INTERNAL_ERROR',
+        message: 'Failed to fetch connector types',
       });
     }
   });
 }
 
 /**
- * Mock connector connection test - replace with actual implementations
+ * Test connector connection (mock implementation)
  */
-async function testConnectorConnection(connector: any): Promise<any> {
-  const config = JSON.parse(connector.configuration);
-  
-  // Simulate connection test
+async function testConnectorConnection(_connector: any): Promise<TestConnectorResponse> {
+  // Mock connection test
   await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  // Mock success with some random failures
-  const isSuccess = Math.random() > 0.2; // 80% success rate
-  
+
   return {
-    success: isSuccess,
-    message: isSuccess ? 'Connection successful' : 'Connection failed: Invalid credentials',
-    timestamp: new Date().toISOString(),
-    responseTime: Math.floor(Math.random() * 1000) + 100, // 100-1100ms
+    success: true,
+    message: 'Connection successful',
+    details: {
+      version: '1.0.0',
+      endpoints: ['tickets', 'users', 'assets'],
+      permissions: ['read', 'write'],
+    },
   };
 } 

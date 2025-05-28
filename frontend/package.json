@@ -1,6 +1,7 @@
 {
   "name": "project-bridge-frontend",
-  "version": "1.0.0",
+  "private": true,
+  "version": "0.0.0",
   "description": "Project Bridge Frontend React SPA",
   "type": "module",
   "scripts": {
@@ -16,12 +17,17 @@
   "dependencies": {
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.0.18",
+    "@hookform/resolvers": "^3.10.0",
     "@tanstack/react-query": "^5.8.4",
+    "@tanstack/react-query-devtools": "^5.8.4",
     "axios": "^1.6.2",
+    "clsx": "^2.0.0",
     "lucide-react": "^0.294.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-hook-form": "^7.56.4",
     "react-router-dom": "^6.20.1",
+    "zod": "^3.25.32",
     "zustand": "^4.4.7"
   },
   "devDependencies": {
@@ -37,7 +43,7 @@
     "postcss": "^8.4.31",
     "tailwindcss": "^3.3.5",
     "typescript": "^5.2.2",
-    "vite": "^5.0.0",
+    "vite": "^4.5.0",
     "vitest": "^1.0.0"
   },
   "engines": {
@@ -53,4 +59,4 @@
   ],
   "author": "Project Bridge Team",
   "license": "MIT"
-} 
+}

@@ -181,15 +181,14 @@ async function seed() {
     console.log('✅ Created sample extracted data');
 
     // Create sample loading results
-    const loadingResult = await prisma.jobLoadResult.create({
+    await prisma.jobLoadResult.create({
       data: {
         jobExtractedDataId: extractedData.id,
         destinationSystem: 'freshservice',
-        successCount: 2,
-        failedCount: 0,
-        errorDetails: null,
-        retryCount: 0,
-        loadedAt: new Date('2024-01-15T12:00:00Z'),
+        successCount: 95,
+        failedCount: 5,
+        errorDetails: {},
+        loadedAt: new Date(),
       },
     });
 

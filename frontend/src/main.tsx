@@ -9,14 +9,8 @@ import './index.css';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      retry: (failureCount, error: any) => {
-        // Don't retry on 4xx errors
-        if (error?.response?.status >= 400 && error?.response?.status < 500) {
-          return false;
-        }
-        return failureCount < 3;
-      },
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
     },
     mutations: {
       retry: false,
@@ -26,10 +20,15 @@ const queryClient = new QueryClient({
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
+      <QueryClientProvider client={queryClient}>
         <App />
-      </BrowserRouter>
-    </QueryClientProvider>
+      </QueryClientProvider>
+    </BrowserRouter>
   </React.StrictMode>,
 ); 

@@ -1,4 +1,4 @@
-import { Queue, Worker, Job } from 'bullmq';
+import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
 import { redisConfig } from '@/config';
 import { CreateJobRequest, JobProgress } from '@/types';
@@ -6,7 +6,6 @@ import { CreateJobRequest, JobProgress } from '@/types';
 // Redis connection for BullMQ
 const redisConnection = new IORedis(redisConfig.url, {
   maxRetriesPerRequest: null,
-  retryDelayOnFailover: 100,
   enableReadyCheck: false,
   lazyConnect: true,
 });
@@ -182,7 +181,7 @@ export class QueueService {
   /**
    * Get job priority based on tenant tier (can be extended)
    */
-  private getJobPriority(tenantId: string): number {
+  private getJobPriority(_tenantId: string): number {
     // Default priority - can be enhanced with tenant tier logic
     return 0;
   }

@@ -1,6 +1,17 @@
 // Re-export Prisma types
 export * from '@prisma/client';
 
+// Job Status enum (matching Prisma schema)
+export enum JobStatus {
+  QUEUED = 'QUEUED',
+  RUNNING = 'RUNNING',
+  EXTRACTING = 'EXTRACTING',
+  DATA_READY = 'DATA_READY',
+  LOADING = 'LOADING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED'
+}
+
 // API Response types
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -59,7 +70,10 @@ export interface JobProgress {
 
 export interface CreateJobRequest {
   sourceConnectorId: string;
+  targetConnectorId?: string;
   destinationConnectorId?: string;
+  name?: string;
+  description?: string;
   entities: string[];
   options: {
     batchSize?: number;
@@ -77,7 +91,13 @@ export interface ConnectorConfig {
 export interface CreateConnectorRequest {
   connectorType: string;
   name: string;
-  config: ConnectorConfig;
+  config: Record<string, any>;
+}
+
+export interface UpdateConnectorRequest {
+  name?: string;
+  config?: Record<string, any>;
+  status?: 'ACTIVE' | 'DISABLED' | 'ERROR';
 }
 
 export interface TestConnectorResponse {

@@ -1,40 +1,69 @@
-import { Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+
+// Components
+import { Layout } from '@/components/layout/Layout';
+import { LoginForm } from '@/components/auth/LoginForm';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+
+// Pages
+import { Dashboard } from '@/pages/Dashboard';
+import { Connectors } from '@/pages/Connectors';
+import { Jobs } from '@/pages/Jobs';
+import { Settings } from '@/pages/Settings';
+
+// Stores
+import { useAuthStore } from '@/stores/auth.store';
 
 function App() {
+  const { checkAuth, isAuthenticated } = useAuthStore();
+
+  useEffect(() => {
+    // Check authentication status on app load
+    checkAuth();
+  }, [checkAuth]);
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="App">
       <Routes>
-        <Route path="/" element={
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-center">
-              <h1 className="text-4xl font-bold text-gray-900 mb-4">
-                Project Bridge
-              </h1>
-              <p className="text-lg text-gray-600 mb-8">
-                Data Migration Platform
-              </p>
-              <div className="space-y-2 text-sm text-gray-500">
-                <p>✅ Frontend: React + TypeScript + Vite</p>
-                <p>✅ Backend: Node.js + Fastify + TypeScript</p>
-                <p>✅ Database: PostgreSQL + Redis</p>
-                <p>🔄 Phase 1: Development Environment Setup</p>
-              </div>
-            </div>
-          </div>
-        } />
-        <Route path="*" element={
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">
-                404 - Page Not Found
-              </h1>
-              <p className="text-gray-600">
-                The page you're looking for doesn't exist.
-              </p>
-            </div>
-          </div>
-        } />
+        {/* Public Routes */}
+        <Route 
+          path="/login" 
+          element={
+            isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginForm />
+          } 
+        />
+
+        {/* Protected Routes */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          {/* Dashboard */}
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          
+          {/* Jobs */}
+          <Route path="jobs" element={<Jobs />} />
+          
+          {/* Connectors */}
+          <Route path="connectors" element={<Connectors />} />
+          
+          {/* Settings */}
+          <Route path="settings" element={<Settings />} />
+        </Route>
+
+        {/* Catch all route */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
+      
+      {/* React Query Devtools */}
+      <ReactQueryDevtools initialIsOpen={false} />
     </div>
   );
 }

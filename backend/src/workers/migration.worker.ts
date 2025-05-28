@@ -18,16 +18,10 @@ export class MigrationWorker {
   private worker: Worker;
 
   constructor() {
-    this.worker = new Worker(
-      QUEUE_NAMES.MIGRATION,
-      this.processJob.bind(this),
-      {
-        connection: redisConnection,
-        concurrency: 3, // Process up to 3 jobs concurrently
-        removeOnComplete: 50,
-        removeOnFail: 100,
-      }
-    );
+    this.worker = new Worker(QUEUE_NAMES.MIGRATION, this.processJob.bind(this), {
+      connection: redisConnection,
+      concurrency: 2,
+    });
 
     this.setupEventHandlers();
   }
@@ -36,13 +30,15 @@ export class MigrationWorker {
    * Process migration jobs
    */
   private async processJob(job: Job): Promise<any> {
-    const { jobId, sourceConnectorId, targetConnectorId, tenantId, userId } = job.data;
+    const { jobId } = job.data;
 
     try {
-      // Update job status to running
-      await this.updateJobStatus(jobId, JobStatus.RUNNING, 'Job started');
+      console.log(`Processing migration job ${jobId}`);
 
-      switch (job.name) {
+      // Determine job type and process accordingly
+      const jobType = job.data.type || JOB_TYPES.EXTRACT_DATA;
+
+      switch (jobType) {
         case JOB_TYPES.EXTRACT_DATA:
           return await this.extractData(job);
         case JOB_TYPES.TRANSFORM_DATA:
@@ -52,10 +48,12 @@ export class MigrationWorker {
         case JOB_TYPES.CLEANUP_DATA:
           return await this.cleanupData(job);
         default:
-          throw new Error(`Unknown job type: ${job.name}`);
+          throw new Error(`Unknown job type: ${jobType}`);
       }
     } catch (error) {
-      await this.updateJobStatus(jobId, JobStatus.FAILED, `Job failed: ${error.message}`);
+      console.error(`Job ${jobId} failed:`, error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      await this.updateJobStatus(jobId, JobStatus.FAILED, `Job failed: ${errorMessage}`);
       throw error;
     }
   }
@@ -71,7 +69,7 @@ export class MigrationWorker {
     await this.updateJobStatus(jobId, JobStatus.RUNNING, 'Starting data extraction');
 
     // Get source connector configuration
-    const sourceConnector = await prisma.connector.findUnique({
+    const sourceConnector = await prisma.tenantConnector.findUnique({
       where: { id: sourceConnectorId, tenantId },
     });
 
@@ -111,7 +109,7 @@ export class MigrationWorker {
     await this.updateJobStatus(jobId, JobStatus.RUNNING, 'Starting data transformation');
 
     // Get target connector configuration
-    const targetConnector = await prisma.connector.findUnique({
+    const targetConnector = await prisma.tenantConnector.findUnique({
       where: { id: targetConnectorId, tenantId },
     });
 
@@ -153,7 +151,7 @@ export class MigrationWorker {
     await this.updateJobStatus(jobId, JobStatus.RUNNING, 'Starting data loading');
 
     // Get target connector
-    const targetConnector = await prisma.connector.findUnique({
+    const targetConnector = await prisma.tenantConnector.findUnique({
       where: { id: targetConnectorId, tenantId },
     });
 
@@ -186,13 +184,13 @@ export class MigrationWorker {
    * Clean up temporary data
    */
   private async cleanupData(job: Job): Promise<any> {
-    const { tenantId, dataType } = job.data;
+    const { tenantId } = job.data;
 
     // Clean up old extracted data (older than 7 days)
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - 7);
 
-    const deletedCount = await prisma.extractedData.deleteMany({
+    const deletedCount = await prisma.jobExtractedData.deleteMany({
       where: {
         tenantId,
         createdAt: { lt: cutoffDate },
@@ -205,7 +203,7 @@ export class MigrationWorker {
   /**
    * Mock data extraction - replace with actual connector implementations
    */
-  private async mockDataExtraction(connector: any, job: Job): Promise<any[]> {
+  private async mockDataExtraction(_connector: any, job: Job): Promise<any[]> {
     // Simulate API calls and data extraction
     const mockData = [];
     const totalRecords = 100; // Mock total
@@ -259,7 +257,7 @@ export class MigrationWorker {
   /**
    * Mock data loading
    */
-  private async mockDataLoading(data: any[], targetConnector: any, job: Job): Promise<any> {
+  private async mockDataLoading(data: any[], _targetConnector: any, job: Job): Promise<any> {
     let successCount = 0;
     let errorCount = 0;
 
@@ -289,45 +287,52 @@ export class MigrationWorker {
       where: { id: jobId },
       data: {
         status,
-        statusMessage: message,
-        updatedAt: new Date(),
+        error: status === JobStatus.FAILED ? message : null,
+        completedAt: status === JobStatus.COMPLETED ? new Date() : null,
       },
     });
   }
 
   /**
-   * Store extracted data
+   * Store extracted data in database
    */
   private async storeExtractedData(jobId: string, data: any[]) {
-    await prisma.extractedData.create({
+    await prisma.jobExtractedData.create({
       data: {
         jobId,
-        data: JSON.stringify(data),
+        tenantId: 'temp-tenant-id', // TODO: Get from job context
+        entityType: 'tickets',
+        batchNumber: 1,
+        sourceSystem: 'mock',
+        rawData: data,
+        transformedData: data,
         recordCount: data.length,
+        extractionTimestamp: new Date(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       },
     });
   }
 
   /**
-   * Get extracted data
+   * Get extracted data from database
    */
   private async getExtractedData(jobId: string): Promise<any[]> {
-    const extracted = await prisma.extractedData.findFirst({
+    const extracted = await prisma.jobExtractedData.findFirst({
       where: { jobId },
+      orderBy: { createdAt: 'desc' },
     });
 
-    return extracted ? JSON.parse(extracted.data) : [];
+    return extracted?.rawData as any[] || [];
   }
 
   /**
    * Store transformed data
    */
   private async storeTransformedData(jobId: string, data: any[]) {
-    await prisma.extractedData.updateMany({
+    await prisma.jobExtractedData.updateMany({
       where: { jobId },
       data: {
-        transformedData: JSON.stringify(data),
-        transformedAt: new Date(),
+        transformedData: data,
       },
     });
   }
@@ -336,24 +341,26 @@ export class MigrationWorker {
    * Get transformed data
    */
   private async getTransformedData(jobId: string): Promise<any[]> {
-    const extracted = await prisma.extractedData.findFirst({
+    const extracted = await prisma.jobExtractedData.findFirst({
       where: { jobId },
+      orderBy: { createdAt: 'desc' },
     });
 
-    return extracted?.transformedData ? JSON.parse(extracted.transformedData) : [];
+    return extracted?.transformedData as any[] || [];
   }
 
   /**
    * Store loading results
    */
-  private async storeLoadingResults(jobId: string, results: any) {
-    await prisma.loadingResult.create({
+  private async storeLoadingResults(_jobId: string, results: any) {
+    await prisma.jobLoadResult.create({
       data: {
-        jobId,
+        jobExtractedDataId: 'temp-id', // TODO: Get actual extracted data ID
+        destinationSystem: 'mock',
         successCount: results.successCount,
-        errorCount: results.errorCount,
-        totalRecords: results.totalRecords,
-        results: JSON.stringify(results),
+        failedCount: results.errorCount,
+        errorDetails: results.errors || {},
+        loadedAt: new Date(),
       },
     });
   }
