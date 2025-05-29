@@ -1,6 +1,12 @@
 // Re-export Prisma types
 export * from '@prisma/client';
 
+// Job Type enum
+export enum JobType {
+  EXTRACTION = 'EXTRACTION',
+  MIGRATION = 'MIGRATION'
+}
+
 // Job Status enum (matching Prisma schema)
 export enum JobStatus {
   QUEUED = 'QUEUED',
@@ -69,6 +75,7 @@ export interface JobProgress {
 }
 
 export interface CreateJobRequest {
+  jobType: JobType;
   sourceConnectorId: string;
   targetConnectorId?: string;
   destinationConnectorId?: string;

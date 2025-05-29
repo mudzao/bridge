@@ -1,0 +1,5 @@
+-- CreateEnum
+CREATE TYPE "JobType" AS ENUM ('EXTRACTION', 'MIGRATION');
+
+-- AlterTable
+ALTER TABLE "jobs" ADD COLUMN     "jobType" "JobType" NOT NULL DEFAULT 'EXTRACTION';

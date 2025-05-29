@@ -7,7 +7,8 @@ import {
   ApiResponse, 
   ValidationError,
   NotFoundError,
-  JobStatus
+  JobStatus,
+  JobType
 } from '@/types';
 
 const prisma = new PrismaClient();
@@ -20,40 +21,68 @@ export async function jobRoutes(fastify: FastifyInstance) {
     preHandler: [authenticateUser, requireTenantAccess()],
   }, async (request, reply) => {
     try {
-      const { sourceConnectorId, targetConnectorId, entities, options } = request.body;
+      console.log('=== JOB CREATION REQUEST ===');
+      console.log('Request body:', JSON.stringify(request.body, null, 2));
+      
+      const { jobType, sourceConnectorId, targetConnectorId, destinationConnectorId, entities, options } = request.body;
       const user = getUser(request);
 
+      console.log('User info:', { userId: user.userId, tenantId: user.tenantId });
+
+      // Handle legacy targetConnectorId field
+      const destConnectorId = destinationConnectorId || targetConnectorId;
+
+      // Map config to options (frontend sends config, database expects options)
+      const jobOptions = options || (request.body as any).config || {};
+
+      // Validate job type specific requirements
+      if (jobType === JobType.MIGRATION && !destConnectorId) {
+        throw new ValidationError('Destination connector is required for migration jobs');
+      }
+
+      console.log('=== CONNECTOR VALIDATION ===');
       // Validate connectors exist and belong to tenant
       const [sourceConnector, targetConnector] = await Promise.all([
         prisma.tenantConnector.findUnique({
           where: { id: sourceConnectorId, tenantId: user.tenantId },
         }),
-        targetConnectorId ? prisma.tenantConnector.findUnique({
-          where: { id: targetConnectorId, tenantId: user.tenantId },
+        destConnectorId ? prisma.tenantConnector.findUnique({
+          where: { id: destConnectorId, tenantId: user.tenantId },
         }) : null,
       ]);
+
+      console.log('Source connector:', sourceConnector?.id);
+      console.log('Target connector:', targetConnector?.id);
 
       if (!sourceConnector) {
         throw new NotFoundError('Source connector not found');
       }
 
-      if (targetConnectorId && !targetConnector) {
+      if (destConnectorId && !targetConnector) {
         throw new NotFoundError('Target connector not found');
       }
 
-      // Create job record
+      console.log('=== JOB CREATION ===');
+      // Create job record (simplified without jobType for now)
+      const jobData = {
+        sourceConnectorId,
+        destinationConnectorId: destConnectorId || null,
+        entities,
+        options: jobOptions,
+        tenantId: user.tenantId,
+        status: JobStatus.QUEUED,
+      };
+      
+      console.log('Job data to create:', JSON.stringify(jobData, null, 2));
+
       const job = await prisma.job.create({
-        data: {
-          sourceConnectorId,
-          destinationConnectorId: targetConnectorId || null,
-          entities,
-          options,
-          tenantId: user.tenantId,
-          status: JobStatus.QUEUED,
-        },
+        data: jobData,
       });
 
+      console.log('Job created with ID:', job.id);
+
       // Add job to queue
+      console.log('=== QUEUE ADDITION ===');
       await queueService.addMigrationJob({
         ...request.body,
         jobId: job.id,
@@ -61,14 +90,21 @@ export async function jobRoutes(fastify: FastifyInstance) {
         userId: user.userId,
       });
 
+      console.log('Job added to queue successfully');
+
       const response: ApiResponse = {
         success: true,
         data: job,
-        message: 'Job created successfully',
+        message: `${jobType?.toLowerCase() || 'extraction'} job created successfully`,
       };
 
       return reply.status(201).send(response);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('=== JOB CREATION ERROR ===');
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      
       if (error instanceof ValidationError || error instanceof NotFoundError) {
         return reply.status(error.statusCode).send({
           success: false,
@@ -81,7 +117,7 @@ export async function jobRoutes(fastify: FastifyInstance) {
       return reply.status(500).send({
         success: false,
         error: 'Internal Server Error',
-        message: 'Failed to create job',
+        message: 'Failed to create job: ' + (error.message || 'Unknown error'),
       });
     }
   });

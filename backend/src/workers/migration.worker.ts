@@ -5,7 +5,7 @@ import { redisConfig } from '@/config';
 import { QUEUE_NAMES, JOB_TYPES } from '@/services/queue.service';
 import { ConnectorService } from '@/services/connector.service';
 import { SSEService, ProgressEvent } from '@/services/sse.service';
-import { JobStatus } from '@/types';
+import { JobStatus, JobType } from '@/types';
 
 const prisma = new PrismaClient();
 
@@ -34,15 +34,29 @@ export class MigrationWorker {
    * Process migration jobs
    */
   private async processJob(job: Job): Promise<any> {
-    const { jobId } = job.data;
+    const { jobId, jobType } = job.data;
 
     try {
-      console.log(`Processing migration job ${jobId}`);
+      console.log(`Processing ${jobType || 'legacy'} job ${jobId}`);
 
-      // Determine job type and process accordingly
-      const jobType = job.data.type || JOB_TYPES.EXTRACT_DATA;
+      // For extraction jobs, only extract and transform
+      if (jobType === JobType.EXTRACTION || !jobType) {
+        await this.extractData(job);
+        // For extraction jobs, we stop here - data is ready for future migration
+        return { type: 'extraction', status: 'completed' };
+      }
 
-      switch (jobType) {
+      // For migration jobs, do full extract -> transform -> load pipeline
+      if (jobType === JobType.MIGRATION) {
+        await this.extractData(job);
+        await this.transformData(job);
+        await this.loadData(job);
+        return { type: 'migration', status: 'completed' };
+      }
+
+      // Handle legacy job processing based on job.data.type
+      const legacyJobType = job.data.type || JOB_TYPES.EXTRACT_DATA;
+      switch (legacyJobType) {
         case JOB_TYPES.EXTRACT_DATA:
           return await this.extractData(job);
         case JOB_TYPES.TRANSFORM_DATA:
@@ -52,7 +66,7 @@ export class MigrationWorker {
         case JOB_TYPES.CLEANUP_DATA:
           return await this.cleanupData(job);
         default:
-          throw new Error(`Unknown job type: ${jobType}`);
+          throw new Error(`Unknown job type: ${legacyJobType}`);
       }
     } catch (error) {
       console.error(`Job ${jobId} failed:`, error);

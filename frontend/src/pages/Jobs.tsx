@@ -18,9 +18,16 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
+// Job Type enum (matching backend)
+enum JobType {
+  EXTRACTION = 'EXTRACTION',
+  MIGRATION = 'MIGRATION'
+}
+
 interface Job {
   id: string;
   tenantId: string;
+  jobType?: string;
   sourceConnectorId: string;
   destinationConnectorId: string;
   status: 'QUEUED' | 'RUNNING' | 'EXTRACTING' | 'DATA_READY' | 'LOADING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
@@ -45,16 +52,26 @@ interface Connector {
   status: string;
 }
 
-// Job creation form schema
+// Updated job creation form schema
 const createJobSchema = z.object({
+  jobType: z.enum(['EXTRACTION', 'MIGRATION']),
   sourceConnectorId: z.string().min(1, 'Source connector is required'),
-  destinationConnectorId: z.string().min(1, 'Destination connector is required'),
+  destinationConnectorId: z.string().optional(),
   entities: z.array(z.string()).min(1, 'At least one entity must be selected'),
   config: z.object({
     batchSize: z.number().min(1).max(1000).default(100),
     startDate: z.string().optional(),
     endDate: z.string().optional(),
   }).default({}),
+}).refine((data) => {
+  // Destination connector is required for migration jobs
+  if (data.jobType === 'MIGRATION' && !data.destinationConnectorId) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'Destination connector is required for migration jobs',
+  path: ['destinationConnectorId'],
 });
 
 type CreateJobForm = z.infer<typeof createJobSchema>;
@@ -100,6 +117,7 @@ export const Jobs: React.FC = () => {
   } = useForm<CreateJobForm>({
     resolver: zodResolver(createJobSchema),
     defaultValues: {
+      jobType: 'EXTRACTION',
       entities: [],
       config: {
         batchSize: 100,
@@ -186,6 +204,19 @@ export const Jobs: React.FC = () => {
     return connector ? connector.name : 'Unknown Connector';
   };
 
+  const getJobDisplayTitle = (job: Job) => {
+    const sourceName = getConnectorName(job.sourceConnectorId);
+    
+    // For extraction jobs or jobs without destination connector
+    if (job.jobType === 'EXTRACTION' || !job.destinationConnectorId) {
+      return `${sourceName} → Extraction`;
+    }
+    
+    // For migration jobs with destination
+    const destinationName = getConnectorName(job.destinationConnectorId);
+    return `${sourceName} → ${destinationName}`;
+  };
+
   const handleCreateJob = async (formData: CreateJobForm) => {
     try {
       await createJobMutation.mutateAsync(formData);
@@ -209,8 +240,7 @@ export const Jobs: React.FC = () => {
   const filteredJobs = jobs.filter((job: Job) => {
     const matchesStatus = statusFilter === 'all' || job.status === statusFilter;
     const matchesSearch = searchTerm === '' || 
-      getConnectorName(job.sourceConnectorId).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getConnectorName(job.destinationConnectorId).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getJobDisplayTitle(job).toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.entities.some(entity => entity.toLowerCase().includes(searchTerm.toLowerCase()));
     
     return matchesStatus && matchesSearch;
@@ -220,12 +250,15 @@ export const Jobs: React.FC = () => {
     if (!showCreateModal) return null;
 
     const sourceConnectorId = watch('sourceConnectorId');
+    const jobType = watch('jobType');
 
     return (
       <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
         <div className="relative top-20 mx-auto p-5 border w-[600px] shadow-lg rounded-md bg-white">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Create Migration Job</h3>
+            <h3 className="text-lg font-medium text-gray-900">
+              Create {jobType === 'MIGRATION' ? 'Migration' : 'Extraction'} Job
+            </h3>
             <button
               onClick={() => {
                 setShowCreateModal(false);
@@ -238,6 +271,26 @@ export const Jobs: React.FC = () => {
           </div>
 
           <form onSubmit={handleSubmit(handleCreateJob)} className="space-y-4">
+            {/* Job Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Job Type</label>
+              <select
+                {...register('jobType')}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="EXTRACTION">Data Extraction (Extract & Transform Only)</option>
+                <option value="MIGRATION">Full Migration (Extract, Transform & Load)</option>
+              </select>
+              {errors.jobType && (
+                <p className="mt-1 text-sm text-red-600">{errors.jobType.message}</p>
+              )}
+              <p className="mt-1 text-xs text-gray-500">
+                {jobType === 'EXTRACTION' 
+                  ? 'Extract and clean data for future migration. No destination system required.'
+                  : 'Complete migration including loading data to target system.'}
+              </p>
+            </div>
+
             {/* Source Connector */}
             <div>
               <label className="block text-sm font-medium text-gray-700">Source Connector</label>
@@ -257,30 +310,34 @@ export const Jobs: React.FC = () => {
               )}
             </div>
 
-            {/* Destination Connector */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Destination Connector</label>
-              <select
-                {...register('destinationConnectorId')}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select destination connector...</option>
-                {connectors
-                  .filter((c: Connector) => c.id !== sourceConnectorId)
-                  .map((connector: Connector) => (
-                    <option key={connector.id} value={connector.id}>
-                      {connector.name} ({connector.connectorType})
-                    </option>
-                  ))}
-              </select>
-              {errors.destinationConnectorId && (
-                <p className="mt-1 text-sm text-red-600">{errors.destinationConnectorId.message}</p>
-              )}
-            </div>
+            {/* Destination Connector - Conditional */}
+            {jobType === 'MIGRATION' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Destination Connector</label>
+                <select
+                  {...register('destinationConnectorId')}
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select destination connector...</option>
+                  {connectors
+                    .filter((c: Connector) => c.id !== sourceConnectorId)
+                    .map((connector: Connector) => (
+                      <option key={connector.id} value={connector.id}>
+                        {connector.name} ({connector.connectorType})
+                      </option>
+                    ))}
+                </select>
+                {errors.destinationConnectorId && (
+                  <p className="mt-1 text-sm text-red-600">{errors.destinationConnectorId.message}</p>
+                )}
+              </div>
+            )}
 
             {/* Entities */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Entities to Migrate</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Entities to {jobType === 'MIGRATION' ? 'Migrate' : 'Extract'}
+              </label>
               <div className="mt-2 space-y-2">
                 {['tickets', 'assets', 'users', 'groups', 'incidents'].map((entity) => (
                   <label key={entity} className="flex items-center">
@@ -339,7 +396,7 @@ export const Jobs: React.FC = () => {
                 className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
               >
                 <Play className="w-4 h-4 mr-2" />
-                {isSubmitting || createJobMutation.isPending ? 'Creating...' : 'Create Job'}
+                {isSubmitting || createJobMutation.isPending ? 'Creating...' : `Create ${jobType === 'MIGRATION' ? 'Migration' : 'Extraction'}`}
               </button>
             </div>
           </form>
@@ -353,9 +410,9 @@ export const Jobs: React.FC = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Migration Jobs</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Data Jobs</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Manage and monitor your data migration jobs
+              Manage and monitor your data extraction and migration jobs
             </p>
           </div>
         </div>
@@ -382,9 +439,9 @@ export const Jobs: React.FC = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Migration Jobs</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Data Jobs</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Manage and monitor your data migration jobs
+              Manage and monitor your data extraction and migration jobs
             </p>
           </div>
         </div>
@@ -407,9 +464,9 @@ export const Jobs: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Migration Jobs</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Data Jobs</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Manage and monitor your data migration jobs
+            Manage and monitor your data extraction and migration jobs
           </p>
         </div>
         <button
@@ -417,7 +474,7 @@ export const Jobs: React.FC = () => {
           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           <Plus className="w-4 h-4 mr-2" />
-          Create Migration
+          Create Job
         </button>
       </div>
 
@@ -531,9 +588,9 @@ export const Jobs: React.FC = () => {
           {filteredJobs.length === 0 ? (
             <div className="text-center py-6">
               <Play className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No migration jobs</h3>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No jobs yet</h3>
               <p className="mt-1 text-sm text-gray-500">
-                Get started by creating your first migration job.
+                Get started by creating your first data extraction or migration job.
               </p>
               <div className="mt-6">
                 <button
@@ -541,7 +598,7 @@ export const Jobs: React.FC = () => {
                   className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Create Migration
+                  Create Job
                 </button>
               </div>
             </div>
@@ -560,7 +617,7 @@ export const Jobs: React.FC = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center space-x-2">
                           <h3 className="text-lg font-medium text-gray-900 truncate">
-                            {getConnectorName(job.sourceConnectorId)} → {getConnectorName(job.destinationConnectorId)}
+                            {getJobDisplayTitle(job)}
                           </h3>
                           {getStatusBadge(job.status)}
                         </div>
@@ -670,7 +727,12 @@ export const Jobs: React.FC = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700">Destination</label>
-                <p className="mt-1 text-sm text-gray-900">{getConnectorName(selectedJob.destinationConnectorId)}</p>
+                <p className="mt-1 text-sm text-gray-900">
+                  {selectedJob.jobType === 'EXTRACTION' || !selectedJob.destinationConnectorId 
+                    ? 'Extraction (No destination)'
+                    : getConnectorName(selectedJob.destinationConnectorId)
+                  }
+                </p>
               </div>
               
               <div>

@@ -80,10 +80,17 @@ enum ConnectorStatus {
   ERROR
 }
 
+// Job Type enum
+enum JobType {
+  EXTRACTION
+  MIGRATION
+}
+
 // Job management
 model Job {
   id                    String    @id @default(cuid())
   tenantId              String
+  jobType               JobType   @default(EXTRACTION)
   sourceConnectorId     String
   destinationConnectorId String?
   entities              String[] // ["tickets", "assets", "users"]
