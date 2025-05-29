@@ -332,4 +332,69 @@ export async function jobRoutes(fastify: FastifyInstance) {
       });
     }
   });
+
+  // Server-Sent Events endpoint for real-time job progress
+  fastify.get<{
+    Params: { jobId: string };
+  }>('/jobs/:jobId/stream', {
+    preHandler: [authenticateUser, requireTenantAccess()],
+  }, async (request, reply) => {
+    try {
+      const { jobId } = request.params;
+      const user = getUser(request);
+
+      // Verify job belongs to tenant
+      const job = await prisma.job.findUnique({
+        where: { id: jobId, tenantId: user.tenantId },
+      });
+
+      if (!job) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Not Found',
+          message: 'Job not found',
+        });
+      }
+
+      // Import SSE service
+      const { SSEService } = await import('@/services/sse.service');
+      const sseService = SSEService.getInstance();
+
+      // Generate unique client ID
+      const clientId = `${user.userId}-${jobId}-${Date.now()}`;
+
+      // Add client to SSE service
+      sseService.addClient(clientId, jobId, user.tenantId, reply);
+
+      // Send current job status immediately
+      const currentProgress = job.progress as any;
+      if (currentProgress) {
+        await sseService.broadcastProgress({
+          jobId,
+          tenantId: user.tenantId,
+          type: 'progress',
+          data: {
+            progress: currentProgress.percentage || 0,
+            status: job.status,
+            message: currentProgress.message || `Job is ${job.status.toLowerCase()}`,
+            phase: currentProgress.phase,
+            recordsProcessed: currentProgress.recordsProcessed || 0,
+            totalRecords: currentProgress.totalRecords,
+            currentEntity: currentProgress.currentEntity,
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // Keep connection alive - don't return anything here
+      // The SSE service handles the connection
+    } catch (error) {
+      fastify.log.error('SSE stream error:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Internal Server Error',
+        message: 'Failed to establish progress stream',
+      });
+    }
+  });
 } 

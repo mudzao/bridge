@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { redisConfig } from '@/config';
 import { QUEUE_NAMES, JOB_TYPES } from '@/services/queue.service';
 import { ConnectorService } from '@/services/connector.service';
+import { SSEService, ProgressEvent } from '@/services/sse.service';
 import { JobStatus } from '@/types';
 
 const prisma = new PrismaClient();
@@ -17,6 +18,7 @@ const redisConnection = new IORedis(redisConfig.url, {
 
 export class MigrationWorker {
   private worker: Worker;
+  private sseService: SSEService;
 
   constructor() {
     this.worker = new Worker(QUEUE_NAMES.MIGRATION, this.processJob.bind(this), {
@@ -24,6 +26,7 @@ export class MigrationWorker {
       concurrency: 2,
     });
 
+    this.sseService = SSEService.getInstance();
     this.setupEventHandlers();
   }
 
@@ -65,9 +68,15 @@ export class MigrationWorker {
   private async extractData(job: Job): Promise<any> {
     const { jobId, sourceConnectorId, tenantId, entities, config } = job.data;
 
-    // Update progress
+    // Update progress and emit event
     await job.updateProgress(10);
     await this.updateJobStatus(jobId, JobStatus.EXTRACTING, 'Starting data extraction');
+    await this.emitProgress(jobId, tenantId, 'status', {
+      progress: 10,
+      status: JobStatus.EXTRACTING,
+      message: 'Starting data extraction',
+      phase: 'initialization'
+    });
 
     // Get source connector configuration
     const sourceConnector = await prisma.tenantConnector.findUnique({
@@ -80,6 +89,12 @@ export class MigrationWorker {
 
     await job.updateProgress(20);
     await this.updateJobStatus(jobId, JobStatus.EXTRACTING, 'Connecting to source system');
+    await this.emitProgress(jobId, tenantId, 'progress', {
+      progress: 20,
+      status: JobStatus.EXTRACTING,
+      message: `Connecting to ${sourceConnector.connectorType} system`,
+      phase: 'connecting'
+    });
 
     let totalExtracted = 0;
     const extractionResults = [];
@@ -89,6 +104,13 @@ export class MigrationWorker {
       const entityType = entities[i];
       
       await this.updateJobStatus(jobId, JobStatus.EXTRACTING, `Extracting ${entityType} data`);
+      await this.emitProgress(jobId, tenantId, 'progress', {
+        progress: 30 + (i / entities.length) * 40,
+        status: JobStatus.EXTRACTING,
+        message: `Extracting ${entityType} data`,
+        phase: 'extracting',
+        currentEntity: entityType
+      });
       
       try {
         // Use real connector for data extraction
@@ -117,18 +139,52 @@ export class MigrationWorker {
         // Update progress based on entity completion
         const entityProgress = 30 + ((i + 1) / entities.length) * 40; // 30-70% range
         await job.updateProgress(entityProgress);
+        await this.emitProgress(jobId, tenantId, 'progress', {
+          progress: entityProgress,
+          status: JobStatus.EXTRACTING,
+          message: `Extracted ${extractedData.records.length} ${entityType} records`,
+          phase: 'extracting',
+          currentEntity: entityType,
+          recordsProcessed: totalExtracted,
+          totalRecords: extractedData.totalCount
+        });
 
       } catch (error) {
         console.error(`Failed to extract ${entityType} data:`, error);
-        throw new Error(`Failed to extract ${entityType}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        const errorMessage = `Failed to extract ${entityType}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        
+        await this.emitProgress(jobId, tenantId, 'error', {
+          progress: 30 + (i / entities.length) * 40,
+          status: JobStatus.FAILED,
+          message: errorMessage,
+          phase: 'extracting',
+          currentEntity: entityType,
+          error: errorMessage
+        });
+        
+        throw new Error(errorMessage);
       }
     }
 
     await job.updateProgress(80);
     await this.updateJobStatus(jobId, JobStatus.DATA_READY, 'Data extraction completed');
+    await this.emitProgress(jobId, tenantId, 'progress', {
+      progress: 80,
+      status: JobStatus.DATA_READY,
+      message: 'Processing extracted data',
+      phase: 'processing',
+      recordsProcessed: totalExtracted
+    });
 
     await job.updateProgress(100);
     await this.updateJobStatus(jobId, JobStatus.DATA_READY, `Extracted ${totalExtracted} records from ${entities.length} entity types`);
+    await this.emitProgress(jobId, tenantId, 'complete', {
+      progress: 100,
+      status: JobStatus.DATA_READY,
+      message: `Successfully extracted ${totalExtracted} records from ${entities.length} entity types`,
+      phase: 'completed',
+      recordsProcessed: totalExtracted
+    });
 
     return { 
       extractedRecords: totalExtracted,
@@ -377,6 +433,26 @@ export class MigrationWorker {
   async close() {
     await this.worker.close();
     await redisConnection.disconnect();
+  }
+
+  /**
+   * Emit progress event for real-time updates
+   */
+  private async emitProgress(
+    jobId: string,
+    tenantId: string,
+    type: 'progress' | 'status' | 'error' | 'complete',
+    data: any
+  ): Promise<void> {
+    const event: ProgressEvent = {
+      jobId,
+      tenantId,
+      type,
+      data,
+      timestamp: new Date().toISOString(),
+    };
+
+    await this.sseService.broadcastProgress(event);
   }
 }
 
