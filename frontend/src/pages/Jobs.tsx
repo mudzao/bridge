@@ -17,6 +17,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { DataValidationModal } from '@/components/DataValidationModal';
 
 // Job Type enum (matching backend)
 enum JobType {
@@ -79,8 +80,10 @@ type CreateJobForm = z.infer<typeof createJobSchema>;
 export const Jobs: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [validationJobId, setValidationJobId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   // Fetch jobs
@@ -665,7 +668,10 @@ export const Jobs: React.FC = () => {
                       
                       {job.status === 'DATA_READY' && (
                         <button
-                          onClick={() => alert('CSV download functionality coming in Phase 6!')}
+                          onClick={() => {
+                            setValidationJobId(job.id);
+                            setShowValidationModal(true);
+                          }}
                           className="inline-flex items-center px-3 py-1.5 border border-green-300 text-xs font-medium rounded text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                         >
                           <Download className="w-3 h-3 mr-1" />
@@ -763,6 +769,18 @@ export const Jobs: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Data Validation Modal */}
+      {showValidationModal && validationJobId && (
+        <DataValidationModal
+          jobId={validationJobId!}
+          isOpen={showValidationModal}
+          onClose={() => {
+            setShowValidationModal(false);
+            setValidationJobId(null);
+          }}
+        />
       )}
     </div>
   );

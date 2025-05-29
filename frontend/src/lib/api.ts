@@ -154,6 +154,40 @@ export const api = {
       const response = await apiClient.get('/api/jobs/stats');
       return response.data;
     },
+
+    // Export functionality
+    getExtractionSummary: async (id: string) => {
+      const response = await apiClient.get(`/api/jobs/${id}/extraction-summary`);
+      return response.data;
+    },
+
+    getDataPreview: async (id: string, entityType: string, limit?: number) => {
+      const response = await apiClient.get(`/api/jobs/${id}/preview/${entityType}`, {
+        params: { limit },
+      });
+      return response.data;
+    },
+
+    getAvailableEntities: async (id: string) => {
+      const response = await apiClient.get(`/api/jobs/${id}/entities`);
+      return response.data;
+    },
+
+    downloadCSV: async (id: string, entityType: string, options?: { includeRawData?: boolean }) => {
+      const response = await apiClient.get(`/api/jobs/${id}/download/csv/${entityType}`, {
+        params: options,
+        responseType: 'blob',
+      });
+      return response;
+    },
+
+    downloadFullExport: async (id: string, options?: { includeRawData?: boolean }) => {
+      const response = await apiClient.get(`/api/jobs/${id}/download/full`, {
+        params: options,
+        responseType: 'blob',
+      });
+      return response;
+    },
   },
 
   // Connectors

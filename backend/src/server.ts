@@ -6,6 +6,7 @@ import { serverConfig, jwtConfig, appConfig } from '@/config';
 import { authRoutes } from '@/routes/auth.routes';
 import { jobRoutes } from '@/routes/jobs.routes';
 import { connectorRoutes } from '@/routes/connectors.routes';
+import { exportRoutes } from '@/routes/export.routes';
 import { bullBoardService } from '@/services/bullboard.service';
 
 // Create Fastify instance with simplified logger
@@ -79,6 +80,7 @@ async function registerRoutes() {
   await fastify.register(authRoutes, { prefix: '/api/auth' });
   await fastify.register(jobRoutes, { prefix: '/api' });
   await fastify.register(connectorRoutes, { prefix: '/api' });
+  await fastify.register(exportRoutes, { prefix: '/api' });
 
   // Bull Board dashboard - skip for now to avoid type issues
   try {
