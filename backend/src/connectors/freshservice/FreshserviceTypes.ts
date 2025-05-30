@@ -211,4 +211,314 @@ export const FRESHSERVICE_SCHEMAS = {
     created_at: 'string',
     updated_at: 'string'
   }
-} as const; 
+} as const;
+
+// Entity definitions following the new architecture
+import { EntityDefinition, EntityType } from '../base/ConnectorInterface';
+
+export const FRESHSERVICE_ENTITY_DEFINITIONS: Record<EntityType, EntityDefinition> = {
+  [EntityType.TICKETS]: {
+    name: 'Tickets',
+    type: EntityType.TICKETS,
+    
+    // Extraction configuration
+    extraction: {
+      endpoint: '/api/v2/tickets',
+      method: 'GET',
+      fields: {
+        id: { type: 'number', required: true, readOnly: true },
+        subject: { type: 'string', required: true },
+        description: { type: 'string', required: false },
+        description_text: { type: 'string', required: false, readOnly: true },
+        status: { type: 'number', required: true },
+        priority: { type: 'number', required: true },
+        type: { type: 'string', required: false },
+        source: { type: 'number', required: false },
+        requester_id: { type: 'number', required: true },
+        responder_id: { type: 'number', required: false },
+        group_id: { type: 'number', required: false },
+        department_id: { type: 'number', required: false },
+        category: { type: 'string', required: false },
+        sub_category: { type: 'string', required: false },
+        created_at: { type: 'date', required: true, readOnly: true },
+        updated_at: { type: 'date', required: true, readOnly: true },
+        due_by: { type: 'date', required: false },
+        custom_fields: { type: 'object', required: false },
+        tags: { type: 'array', required: false }
+      },
+      pagination: {
+        type: 'page',
+        param: 'page'
+      }
+    },
+    
+    // Loading configuration
+    loading: {
+      endpoint: '/api/v2/tickets',
+      method: 'POST',
+      fields: {
+        subject: { type: 'string', required: true },
+        description: { type: 'string', required: false },
+        status: { type: 'number', required: true },
+        priority: { type: 'number', required: true },
+        type: { type: 'string', required: false },
+        source: { type: 'number', required: false },
+        requester_id: { type: 'number', required: true },
+        responder_id: { type: 'number', required: false },
+        group_id: { type: 'number', required: false },
+        department_id: { type: 'number', required: false },
+        category: { type: 'string', required: false },
+        sub_category: { type: 'string', required: false },
+        due_by: { type: 'date', required: false },
+        custom_fields: { type: 'object', required: false },
+        tags: { type: 'array', required: false }
+      },
+      requiredFields: ['subject', 'status', 'priority', 'requester_id'],
+      validation: {
+        status: {
+          type: 'enum',
+          value: [2, 3, 4, 5, 6], // Valid status values for creation
+          message: 'Invalid status value for ticket creation'
+        },
+        priority: {
+          type: 'enum',
+          value: [1, 2, 3, 4], // Valid priority values
+          message: 'Invalid priority value'
+        }
+      }
+    }
+  },
+
+  [EntityType.ASSETS]: {
+    name: 'Assets',
+    type: EntityType.ASSETS,
+    
+    // Extraction configuration
+    extraction: {
+      endpoint: '/api/v2/assets',
+      method: 'GET',
+      fields: {
+        id: { type: 'number', required: true, readOnly: true },
+        display_id: { type: 'number', required: true, readOnly: true },
+        name: { type: 'string', required: true },
+        description: { type: 'string', required: false },
+        asset_type_id: { type: 'number', required: true },
+        impact: { type: 'string', required: false },
+        usage_type: { type: 'string', required: false },
+        asset_tag: { type: 'string', required: false },
+        user_id: { type: 'number', required: false },
+        location_id: { type: 'number', required: false },
+        department_id: { type: 'number', required: false },
+        agent_id: { type: 'number', required: false },
+        group_id: { type: 'number', required: false },
+        assigned_on: { type: 'date', required: false },
+        created_at: { type: 'date', required: true, readOnly: true },
+        updated_at: { type: 'date', required: true, readOnly: true },
+        type_fields: { type: 'object', required: false }
+      },
+      pagination: {
+        type: 'page',
+        param: 'page'
+      }
+    },
+    
+    // Loading configuration
+    loading: {
+      endpoint: '/api/v2/assets',
+      method: 'POST',
+      fields: {
+        name: { type: 'string', required: true },
+        description: { type: 'string', required: false },
+        asset_type_id: { type: 'number', required: true },
+        impact: { type: 'string', required: false },
+        usage_type: { type: 'string', required: false },
+        asset_tag: { type: 'string', required: false },
+        user_id: { type: 'number', required: false },
+        location_id: { type: 'number', required: false },
+        department_id: { type: 'number', required: false },
+        agent_id: { type: 'number', required: false },
+        group_id: { type: 'number', required: false },
+        type_fields: { type: 'object', required: false }
+      },
+      requiredFields: ['name', 'asset_type_id']
+    }
+  },
+
+  [EntityType.USERS]: {
+    name: 'Users',
+    type: EntityType.USERS,
+    
+    // Extraction configuration
+    extraction: {
+      endpoint: '/api/v2/requesters',
+      method: 'GET',
+      fields: {
+        id: { type: 'number', required: true, readOnly: true },
+        first_name: { type: 'string', required: true },
+        last_name: { type: 'string', required: false },
+        email: { type: 'string', required: true },
+        job_title: { type: 'string', required: false },
+        work_phone_number: { type: 'string', required: false },
+        mobile_phone_number: { type: 'string', required: false },
+        department_id: { type: 'number', required: false },
+        reporting_manager_id: { type: 'number', required: false },
+        address: { type: 'string', required: false },
+        time_zone: { type: 'string', required: false },
+        language: { type: 'string', required: false },
+        location_id: { type: 'number', required: false },
+        active: { type: 'boolean', required: true },
+        vip_user: { type: 'boolean', required: false },
+        created_at: { type: 'date', required: true, readOnly: true },
+        updated_at: { type: 'date', required: true, readOnly: true },
+        has_logged_in: { type: 'boolean', required: false, readOnly: true },
+        roles: { type: 'array', required: false },
+        custom_fields: { type: 'object', required: false }
+      },
+      pagination: {
+        type: 'page',
+        param: 'page'
+      }
+    },
+    
+    // Loading configuration
+    loading: {
+      endpoint: '/api/v2/requesters',
+      method: 'POST',
+      fields: {
+        first_name: { type: 'string', required: true },
+        last_name: { type: 'string', required: false },
+        email: { type: 'string', required: true },
+        job_title: { type: 'string', required: false },
+        work_phone_number: { type: 'string', required: false },
+        mobile_phone_number: { type: 'string', required: false },
+        department_id: { type: 'number', required: false },
+        reporting_manager_id: { type: 'number', required: false },
+        address: { type: 'string', required: false },
+        time_zone: { type: 'string', required: false },
+        language: { type: 'string', required: false },
+        location_id: { type: 'number', required: false },
+        active: { type: 'boolean', required: false },
+        vip_user: { type: 'boolean', required: false },
+        custom_fields: { type: 'object', required: false }
+      },
+      requiredFields: ['first_name', 'email'],
+      validation: {
+        email: {
+          type: 'regex',
+          value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+          message: 'Invalid email format'
+        }
+      }
+    }
+  },
+
+  [EntityType.GROUPS]: {
+    name: 'Groups',
+    type: EntityType.GROUPS,
+    
+    // Extraction configuration
+    extraction: {
+      endpoint: '/api/v2/groups',
+      method: 'GET',
+      fields: {
+        id: { type: 'number', required: true, readOnly: true },
+        name: { type: 'string', required: true },
+        description: { type: 'string', required: false },
+        escalate_to: { type: 'number', required: false },
+        agent_ids: { type: 'array', required: false },
+        members: { type: 'array', required: false },
+        observers: { type: 'array', required: false },
+        restricted: { type: 'boolean', required: false },
+        approval_required: { type: 'boolean', required: false },
+        auto_ticket_assign: { type: 'boolean', required: false },
+        created_at: { type: 'date', required: true, readOnly: true },
+        updated_at: { type: 'date', required: true, readOnly: true }
+      },
+      pagination: {
+        type: 'page',
+        param: 'page'
+      }
+    },
+    
+    // Loading configuration
+    loading: {
+      endpoint: '/api/v2/groups',
+      method: 'POST',
+      fields: {
+        name: { type: 'string', required: true },
+        description: { type: 'string', required: false },
+        escalate_to: { type: 'number', required: false },
+        agent_ids: { type: 'array', required: false },
+        restricted: { type: 'boolean', required: false },
+        approval_required: { type: 'boolean', required: false },
+        auto_ticket_assign: { type: 'boolean', required: false }
+      },
+      requiredFields: ['name']
+    }
+  },
+
+  // Placeholder definitions for other entity types (not implemented yet)
+  [EntityType.INCIDENTS]: {
+    name: 'Incidents',
+    type: EntityType.INCIDENTS,
+    extraction: {
+      endpoint: '/api/v2/tickets',
+      method: 'GET',
+      fields: {}
+    },
+    loading: {
+      endpoint: '/api/v2/tickets',
+      method: 'POST',
+      fields: {},
+      requiredFields: []
+    }
+  },
+
+  [EntityType.CHANGES]: {
+    name: 'Changes',
+    type: EntityType.CHANGES,
+    extraction: {
+      endpoint: '/api/v2/changes',
+      method: 'GET',
+      fields: {}
+    },
+    loading: {
+      endpoint: '/api/v2/changes',
+      method: 'POST',
+      fields: {},
+      requiredFields: []
+    }
+  },
+
+  [EntityType.PROBLEMS]: {
+    name: 'Problems',
+    type: EntityType.PROBLEMS,
+    extraction: {
+      endpoint: '/api/v2/problems',
+      method: 'GET',
+      fields: {}
+    },
+    loading: {
+      endpoint: '/api/v2/problems',
+      method: 'POST',
+      fields: {},
+      requiredFields: []
+    }
+  },
+
+  [EntityType.RELEASES]: {
+    name: 'Releases',
+    type: EntityType.RELEASES,
+    extraction: {
+      endpoint: '/api/v2/releases',
+      method: 'GET',
+      fields: {}
+    },
+    loading: {
+      endpoint: '/api/v2/releases',
+      method: 'POST',
+      fields: {},
+      requiredFields: []
+    }
+  }
+}; 

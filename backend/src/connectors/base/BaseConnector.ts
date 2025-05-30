@@ -6,7 +6,12 @@ import {
   ExtractedData, 
   ExtractionOptions,
   ConnectorMetadata,
-  ConnectorError
+  ConnectorError,
+  EntityType,
+  LoadOptions,
+  LoadResult,
+  LoadError,
+  EntityDefinition
 } from './ConnectorInterface';
 
 export abstract class BaseConnector implements ConnectorInterface {
@@ -21,12 +26,10 @@ export abstract class BaseConnector implements ConnectorInterface {
     
     // Create HTTP client with base configuration
     this.httpClient = axios.create({
-      baseURL: this.metadata.baseUrl || this.config.baseUrl,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Project-Bridge/1.0'
-      }
+      },
     });
 
     // Add request interceptor for authentication
@@ -131,7 +134,7 @@ export abstract class BaseConnector implements ConnectorInterface {
   }
 
   /**
-   * Log connector activity
+   * Helper method for logging
    */
   protected log(level: 'info' | 'warn' | 'error', message: string, data?: any): void {
     const logData = {
@@ -143,20 +146,24 @@ export abstract class BaseConnector implements ConnectorInterface {
     console[level](`[${this.metadata.type.toUpperCase()}]`, logData);
   }
 
-  // Abstract methods that must be implemented by concrete connectors
-  public abstract testConnection(): Promise<ConnectionTestResult>;
-  public abstract authenticate(): Promise<boolean>;
-  public abstract extractData(options: ExtractionOptions): Promise<ExtractedData>;
-  public abstract getSupportedEntities(): string[];
-  public abstract getEntitySchema(entityType: string): Record<string, any>;
-  public abstract transformData(entityType: string, externalData: any[]): any[];
-
   /**
    * Get connector metadata
    */
   public getMetadata(): ConnectorMetadata {
     return this.metadata;
   }
+
+  // Abstract methods that must be implemented by concrete connectors
+  public abstract testConnection(): Promise<ConnectionTestResult>;
+  public abstract authenticate(): Promise<boolean>;
+  public abstract extractData(options: ExtractionOptions): Promise<ExtractedData>;
+  public abstract loadData(options: LoadOptions, data: any[]): Promise<LoadResult>;
+  public abstract getSupportedEntities(): string[];
+  public abstract getEntitySchema(entityType: string): Record<string, any>;
+  public abstract getEntityDefinition(entityType: EntityType): EntityDefinition;
+  public abstract transformData(entityType: string, externalData: any[]): any[];
+  public abstract transformForLoad(entityType: string, internalData: any[]): any[];
+  public abstract validateForLoad(entityType: string, data: any[]): LoadError[];
 
   /**
    * Check if connector is authenticated

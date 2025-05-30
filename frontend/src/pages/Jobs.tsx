@@ -22,6 +22,7 @@ import { DataValidationModal } from '@/components/DataValidationModal';
 // Job Type enum (matching backend)
 enum JobType {
   EXTRACTION = 'EXTRACTION',
+  LOADING = 'LOADING',
   MIGRATION = 'MIGRATION'
 }
 

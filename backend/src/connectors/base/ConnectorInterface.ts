@@ -25,6 +25,77 @@ export interface ExtractionOptions {
   filters?: Record<string, any>;
 }
 
+// New interfaces for loading operations
+export interface LoadOptions {
+  entityType: string;
+  batchSize?: number;
+  validateOnly?: boolean;
+  overwriteExisting?: boolean;
+  skipDuplicates?: boolean;
+}
+
+export interface LoadResult {
+  entityType: string;
+  totalRecords: number;
+  successCount: number;
+  failureCount: number;
+  errors: LoadError[];
+  summary: {
+    created: number;
+    updated: number;
+    skipped: number;
+  };
+}
+
+export interface LoadError {
+  recordId?: string;
+  externalId?: string;
+  error: string;
+  field?: string;
+  value?: any;
+}
+
+// Entity definition for the new architecture
+export interface EntityDefinition {
+  name: string;
+  type: EntityType;
+  
+  // Extraction configuration
+  extraction: {
+    endpoint: string;
+    method: 'GET';
+    fields: Record<string, FieldDefinition>;
+    pagination?: {
+      type: 'cursor' | 'offset' | 'page';
+      param: string;
+    };
+  };
+  
+  // Loading configuration
+  loading: {
+    endpoint: string;
+    method: 'POST' | 'PUT';
+    fields: Record<string, FieldDefinition>;
+    requiredFields: string[];
+    validation?: Record<string, ValidationRule>;
+  };
+}
+
+export interface FieldDefinition {
+  type: 'string' | 'number' | 'boolean' | 'date' | 'object' | 'array';
+  required: boolean;
+  readOnly?: boolean;
+  createOnly?: boolean;
+  updateOnly?: boolean;
+  validation?: ValidationRule;
+}
+
+export interface ValidationRule {
+  type: 'regex' | 'enum' | 'range' | 'custom';
+  value: any;
+  message: string;
+}
+
 export interface ConnectorInterface {
   /**
    * Test the connection to the external system
@@ -42,6 +113,11 @@ export interface ConnectorInterface {
   extractData(options: ExtractionOptions): Promise<ExtractedData>;
 
   /**
+   * Load data into the external system
+   */
+  loadData(options: LoadOptions, data: any[]): Promise<LoadResult>;
+
+  /**
    * Get the supported entity types for this connector
    */
   getSupportedEntities(): string[];
@@ -52,14 +128,24 @@ export interface ConnectorInterface {
   getEntitySchema(entityType: string): Record<string, any>;
 
   /**
-   * Transform data from external format to internal format
+   * Get the entity definition for a specific entity type (new architecture)
+   */
+  getEntityDefinition(entityType: EntityType): EntityDefinition;
+
+  /**
+   * Transform data from external format to internal format (for extraction)
    */
   transformData(entityType: string, externalData: any[]): any[];
 
   /**
-   * Load data into the external system (for destination connectors)
+   * Transform data from internal format to external format (for loading)
    */
-  loadData?(entityType: string, data: any[]): Promise<any>;
+  transformForLoad(entityType: string, internalData: any[]): any[];
+
+  /**
+   * Validate data before loading
+   */
+  validateForLoad(entityType: string, data: any[]): LoadError[];
 }
 
 export interface ConnectorMetadata {
@@ -69,6 +155,11 @@ export interface ConnectorMetadata {
   supportedEntities: string[];
   authType: 'api_key' | 'oauth' | 'basic' | 'token';
   baseUrl?: string;
+  capabilities: {
+    extraction: boolean;
+    loading: boolean;
+    bidirectional: boolean;
+  };
 }
 
 export enum EntityType {

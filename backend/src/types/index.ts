@@ -4,6 +4,7 @@ export * from '@prisma/client';
 // Job Type enum
 export enum JobType {
   EXTRACTION = 'EXTRACTION',
+  LOADING = 'LOADING',
   MIGRATION = 'MIGRATION'
 }
 

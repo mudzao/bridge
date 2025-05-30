@@ -83,6 +83,7 @@ enum ConnectorStatus {
 // Job Type enum
 enum JobType {
   EXTRACTION
+  LOADING
   MIGRATION
 }
 
