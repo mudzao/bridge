@@ -19,13 +19,6 @@ import {
 import { api } from '@/lib/api';
 import { DataValidationModal } from '@/components/DataValidationModal';
 
-// Job Type enum (matching backend)
-enum JobType {
-  EXTRACTION = 'EXTRACTION',
-  LOADING = 'LOADING',
-  MIGRATION = 'MIGRATION'
-}
-
 interface Job {
   id: string;
   tenantId: string;
@@ -173,29 +166,27 @@ export const Jobs: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      QUEUED: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Queued' },
-      RUNNING: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Running' },
-      EXTRACTING: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Extracting' },
-      DATA_READY: { bg: 'bg-green-100', text: 'text-green-800', label: 'Data Ready' },
-      LOADING: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Loading' },
-      COMPLETED: { bg: 'bg-green-100', text: 'text-green-800', label: 'Completed' },
-      FAILED: { bg: 'bg-red-100', text: 'text-red-800', label: 'Failed' },
-      CANCELLED: { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Cancelled' },
+      QUEUED: { bg: 'bg-yellow-600', text: 'text-white', label: 'Queued' },
+      RUNNING: { bg: 'bg-blue-600', text: 'text-white', label: 'Running' },
+      EXTRACTING: { bg: 'bg-blue-600', text: 'text-white', label: 'Extracting' },
+      DATA_READY: { bg: 'bg-green-600', text: 'text-white', label: 'Data Ready' },
+      LOADING: { bg: 'bg-blue-600', text: 'text-white', label: 'Loading' },
+      COMPLETED: { bg: 'bg-green-600', text: 'text-white', label: 'Completed' },
+      FAILED: { bg: 'bg-red-600', text: 'text-white', label: 'Failed' },
+      CANCELLED: { bg: 'bg-gray-600', text: 'text-white', label: 'Cancelled' },
     };
 
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.QUEUED;
 
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
-        {getStatusIcon(status)}
-        <span className="ml-1">{config.label}</span>
+      <span className={`inline-flex items-center justify-center px-3 py-1.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+        {config.label}
       </span>
     );
   };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
@@ -258,9 +249,9 @@ export const Jobs: React.FC = () => {
 
     return (
       <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-        <div className="relative top-20 mx-auto p-5 border w-[600px] shadow-lg rounded-md bg-white">
+        <div className="relative top-20 mx-auto p-5 border w-[600px] shadow-lg rounded-md bg-white dark:bg-gray-800">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium text-gray-900">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
               Create {jobType === 'MIGRATION' ? 'Migration' : 'Extraction'} Job
             </h3>
             <button
@@ -268,7 +259,7 @@ export const Jobs: React.FC = () => {
                 setShowCreateModal(false);
                 reset();
               }}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             >
               <XCircle className="w-5 h-5" />
             </button>
@@ -277,18 +268,18 @@ export const Jobs: React.FC = () => {
           <form onSubmit={handleSubmit(handleCreateJob)} className="space-y-4">
             {/* Job Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Job Type</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Job Type</label>
               <select
                 {...register('jobType')}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
               >
                 <option value="EXTRACTION">Data Extraction (Extract & Transform Only)</option>
                 <option value="MIGRATION">Full Migration (Extract, Transform & Load)</option>
               </select>
               {errors.jobType && (
-                <p className="mt-1 text-sm text-red-600">{errors.jobType.message}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.jobType.message}</p>
               )}
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 {jobType === 'EXTRACTION' 
                   ? 'Extract and clean data for future migration. No destination system required.'
                   : 'Complete migration including loading data to target system.'}
@@ -297,10 +288,10 @@ export const Jobs: React.FC = () => {
 
             {/* Source Connector */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Source Connector</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Source Connector</label>
               <select
                 {...register('sourceConnectorId')}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
               >
                 <option value="">Select source connector...</option>
                 {connectors.map((connector: Connector) => (
@@ -310,17 +301,17 @@ export const Jobs: React.FC = () => {
                 ))}
               </select>
               {errors.sourceConnectorId && (
-                <p className="mt-1 text-sm text-red-600">{errors.sourceConnectorId.message}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.sourceConnectorId.message}</p>
               )}
             </div>
 
             {/* Destination Connector - Conditional */}
             {jobType === 'MIGRATION' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700">Destination Connector</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Destination Connector</label>
                 <select
                   {...register('destinationConnectorId')}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                 >
                   <option value="">Select destination connector...</option>
                   {connectors
@@ -332,14 +323,14 @@ export const Jobs: React.FC = () => {
                     ))}
                 </select>
                 {errors.destinationConnectorId && (
-                  <p className="mt-1 text-sm text-red-600">{errors.destinationConnectorId.message}</p>
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.destinationConnectorId.message}</p>
                 )}
               </div>
             )}
 
             {/* Entities */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Entities to {jobType === 'MIGRATION' ? 'Migrate' : 'Extract'}
               </label>
               <div className="mt-2 space-y-2">
@@ -349,35 +340,35 @@ export const Jobs: React.FC = () => {
                       type="checkbox"
                       value={entity}
                       {...register('entities')}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700"
                     />
-                    <span className="ml-2 text-sm text-gray-700 capitalize">{entity}</span>
+                    <span className="ml-2 text-sm text-gray-700 dark:text-gray-300 capitalize">{entity}</span>
                   </label>
                 ))}
               </div>
               {errors.entities && (
-                <p className="mt-1 text-sm text-red-600">{errors.entities.message}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.entities.message}</p>
               )}
             </div>
 
             {/* Configuration */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Batch Size</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Batch Size</label>
                 <input
                   type="number"
                   {...register('config.batchSize', { valueAsNumber: true })}
                   min="1"
                   max="1000"
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Start Date (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Start Date (Optional)</label>
                 <input
                   type="date"
                   {...register('config.startDate')}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                 />
               </div>
             </div>
@@ -390,7 +381,7 @@ export const Jobs: React.FC = () => {
                   setShowCreateModal(false);
                   reset();
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 Cancel
               </button>
@@ -414,21 +405,21 @@ export const Jobs: React.FC = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Data Jobs</h1>
-            <p className="mt-1 text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Data Jobs</h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Manage and monitor your data extraction and migration jobs
             </p>
           </div>
         </div>
         
-        <div className="bg-white shadow rounded-lg p-6">
+        <div className="bg-white dark:bg-gray-700 shadow rounded-lg p-6">
           <div className="animate-pulse space-y-4">
             {[...Array(3)].map((_, i) => (
               <div key={i} className="flex space-x-4">
-                <div className="rounded-lg bg-gray-200 h-16 w-16"></div>
+                <div className="rounded-lg bg-gray-200 dark:bg-gray-600 h-16 w-16"></div>
                 <div className="flex-1 space-y-2 py-1">
-                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-3/4"></div>
+                  <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-1/2"></div>
                 </div>
               </div>
             ))}
@@ -443,18 +434,18 @@ export const Jobs: React.FC = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Data Jobs</h1>
-            <p className="mt-1 text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Data Jobs</h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Manage and monitor your data extraction and migration jobs
             </p>
           </div>
         </div>
         
-        <div className="bg-white shadow rounded-lg p-6">
+        <div className="bg-white dark:bg-gray-700 shadow rounded-lg p-6">
           <div className="text-center py-6">
             <AlertCircle className="mx-auto h-12 w-12 text-red-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Error loading jobs</h3>
-            <p className="mt-1 text-sm text-gray-500">
+            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Error loading jobs</h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               {(jobsError as Error).message}
             </p>
           </div>
@@ -468,8 +459,8 @@ export const Jobs: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Data Jobs</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Data Jobs</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Manage and monitor your data extraction and migration jobs
           </p>
         </div>
@@ -485,74 +476,50 @@ export const Jobs: React.FC = () => {
       {/* Statistics Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Clock className="h-6 w-6 text-gray-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Total Jobs</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats.total || 0}</dd>
-                  </dl>
-                </div>
-              </div>
+          <div className="bg-white dark:bg-gray-900 shadow rounded-lg p-6">
+            <span className="text-gray-500 text-sm mb-2 block">Total Jobs</span>
+            <div className="flex w-full items-center justify-between">
+              <span className="text-2xl font-bold text-black dark:text-white">
+                {stats.total || 0}
+              </span>
+              <Clock className="w-6 h-6 text-gray-400 ml-2" />
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <RefreshCw className="h-6 w-6 text-blue-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Running</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats.running || 0}</dd>
-                  </dl>
-                </div>
-              </div>
+          <div className="bg-white dark:bg-gray-900 shadow rounded-lg p-6">
+            <span className="text-gray-500 text-sm mb-2 block">Running</span>
+            <div className="flex w-full items-center justify-between">
+              <span className="text-2xl font-bold text-black dark:text-white">
+                {stats.running || 0}
+              </span>
+              <RefreshCw className="w-6 h-6 text-gray-400 ml-2" />
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <CheckCircle className="h-6 w-6 text-green-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Completed</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats.completed || 0}</dd>
-                  </dl>
-                </div>
-              </div>
+          <div className="bg-white dark:bg-gray-900 shadow rounded-lg p-6">
+            <span className="text-gray-500 text-sm mb-2 block">Completed</span>
+            <div className="flex w-full items-center justify-between">
+              <span className="text-2xl font-bold text-black dark:text-white">
+                {stats.completed || 0}
+              </span>
+              <CheckCircle className="w-6 h-6 text-gray-400 ml-2" />
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <XCircle className="h-6 w-6 text-red-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Failed</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats.failed || 0}</dd>
-                  </dl>
-                </div>
-              </div>
+          <div className="bg-white dark:bg-gray-900 shadow rounded-lg p-6">
+            <span className="text-gray-500 text-sm mb-2 block">Failed</span>
+            <div className="flex w-full items-center justify-between">
+              <span className="text-2xl font-bold text-black dark:text-white">
+                {stats.failed || 0}
+              </span>
+              <XCircle className="w-6 h-6 text-gray-400 ml-2" />
             </div>
           </div>
         </div>
       )}
 
       {/* Filters */}
-      <div className="bg-white shadow rounded-lg p-4">
+      <div className="bg-white dark:bg-gray-900 shadow rounded-lg p-4">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
@@ -562,7 +529,7 @@ export const Jobs: React.FC = () => {
                 placeholder="Search jobs..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
               />
             </div>
           </div>
@@ -570,7 +537,7 @@ export const Jobs: React.FC = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
             >
               <option value="all">All Statuses</option>
               <option value="QUEUED">Queued</option>
@@ -587,13 +554,13 @@ export const Jobs: React.FC = () => {
       </div>
 
       {/* Jobs List */}
-      <div className="bg-white shadow rounded-lg">
+      <div className="bg-white dark:bg-gray-900 shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
           {filteredJobs.length === 0 ? (
             <div className="text-center py-6">
               <Play className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No jobs yet</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No jobs yet</h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Get started by creating your first data extraction or migration job.
               </p>
               <div className="mt-6">
@@ -607,94 +574,208 @@ export const Jobs: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
-              {filteredJobs.map((job: Job) => (
-                <div
-                  key={job.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex-shrink-0">
-                        {getStatusIcon(job.status)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2">
-                          <h3 className="text-lg font-medium text-gray-900 truncate">
-                            {getJobDisplayTitle(job)}
-                          </h3>
-                          {getStatusBadge(job.status)}
-                        </div>
-                        <p className="text-sm text-gray-500">
-                          Entities: {job.entities.join(', ')} • Created {formatDate(job.createdAt)}
-                        </p>
-                        {job.progress && (
-                          <div className="mt-2">
-                            <div className="flex items-center justify-between text-xs text-gray-500">
-                              <span>
-                                {job.progress.currentEntity && `Processing ${job.progress.currentEntity}`}
-                              </span>
-                              <span>
-                                {job.progress.recordsProcessed && job.progress.totalRecords && 
-                                  `${job.progress.recordsProcessed}/${job.progress.totalRecords} records`
-                                }
-                              </span>
-                            </div>
-                            {job.progress.percentage !== undefined && (
-                              <div className="mt-1 w-full bg-gray-200 rounded-full h-2">
-                                <div 
-                                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                  style={{ width: `${job.progress.percentage}%` }}
-                                ></div>
+            <>
+              {/* Table for desktop */}
+              <div className="hidden md:block">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                    <thead className="bg-gray-50 dark:bg-gray-800">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Job
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Entities
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Progress
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Created
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-600">
+                      {filteredJobs.map((job: Job) => (
+                        <tr key={job.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div>
+                                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {getJobDisplayTitle(job)}
+                                </div>
                               </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {getStatusBadge(job.status)}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900 dark:text-white">
+                              {job.entities.join(', ')}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {job.progress && job.progress.percentage !== undefined ? (
+                              <div className="w-full">
+                                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                                  <span>{job.progress.percentage}%</span>
+                                  {job.progress.recordsProcessed && job.progress.totalRecords && (
+                                    <span>{job.progress.recordsProcessed}/{job.progress.totalRecords}</span>
+                                  )}
+                                </div>
+                                <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                                  <div 
+                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${job.progress.percentage}%` }}
+                                  ></div>
+                                </div>
+                                {job.progress.currentEntity && (
+                                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    Processing {job.progress.currentEntity}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-400">—</span>
                             )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {formatDate(job.createdAt)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex justify-end space-x-2">
+                              <button
+                                onClick={() => setSelectedJob(job)}
+                                className="inline-flex items-center px-2 py-1 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                              >
+                                <Eye className="w-3 h-3 mr-1" />
+                                Details
+                              </button>
+                              
+                              {job.status === 'DATA_READY' && (
+                                <button
+                                  onClick={() => {
+                                    setValidationJobId(job.id);
+                                    setShowValidationModal(true);
+                                  }}
+                                  className="inline-flex items-center px-2 py-1 border border-green-300 dark:border-green-600 text-xs font-medium rounded text-green-700 dark:text-green-400 bg-white dark:bg-gray-700 hover:bg-green-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                >
+                                  <Download className="w-3 h-3 mr-1" />
+                                  CSV
+                                </button>
+                              )}
+                              
+                              {['QUEUED', 'RUNNING', 'EXTRACTING', 'LOADING'].includes(job.status) && (
+                                <button
+                                  onClick={() => handleCancelJob(job.id)}
+                                  disabled={cancelJobMutation.isPending}
+                                  className="inline-flex items-center px-2 py-1 border border-red-300 dark:border-red-600 text-xs font-medium rounded text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                                >
+                                  <Pause className="w-3 h-3 mr-1" />
+                                  Cancel
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Cards for mobile */}
+              <div className="md:hidden space-y-4">
+                {filteredJobs.map((job: Job) => (
+                  <div
+                    key={job.id}
+                    className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:border-gray-300 dark:hover:border-gray-500 transition-colors dark:bg-gray-800"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex-shrink-0">
+                          {getStatusIcon(job.status)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2">
+                            <h3 className="text-lg font-medium text-gray-900 dark:text-white truncate">
+                              {getJobDisplayTitle(job)}
+                            </h3>
+                            {getStatusBadge(job.status)}
                           </div>
-                        )}
-                        {job.error && (
-                          <p className="mt-1 text-sm text-red-600">
-                            Error: {job.error}
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Entities: {job.entities.join(', ')} • Created {formatDate(job.createdAt)}
                           </p>
+                          {job.progress && (
+                            <div className="mt-2">
+                              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                <span>
+                                  {job.progress.currentEntity && `Processing ${job.progress.currentEntity}`}
+                                </span>
+                                <span>
+                                  {job.progress.recordsProcessed && job.progress.totalRecords && 
+                                    `${job.progress.recordsProcessed}/${job.progress.totalRecords} records`
+                                  }
+                                </span>
+                              </div>
+                              {job.progress.percentage !== undefined && (
+                                <div className="mt-1 w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                                  <div 
+                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${job.progress.percentage}%` }}
+                                  ></div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setSelectedJob(job)}
+                          className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                          <Eye className="w-3 h-3 mr-1" />
+                          Details
+                        </button>
+                        
+                        {job.status === 'DATA_READY' && (
+                          <button
+                            onClick={() => {
+                              setValidationJobId(job.id);
+                              setShowValidationModal(true);
+                            }}
+                            className="inline-flex items-center px-3 py-1.5 border border-green-300 dark:border-green-600 text-xs font-medium rounded text-green-700 dark:text-green-400 bg-white dark:bg-gray-700 hover:bg-green-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                          >
+                            <Download className="w-3 h-3 mr-1" />
+                            Download CSV
+                          </button>
+                        )}
+                        
+                        {['QUEUED', 'RUNNING', 'EXTRACTING', 'LOADING'].includes(job.status) && (
+                          <button
+                            onClick={() => handleCancelJob(job.id)}
+                            disabled={cancelJobMutation.isPending}
+                            className="inline-flex items-center px-3 py-1.5 border border-red-300 dark:border-red-600 text-xs font-medium rounded text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                          >
+                            <Pause className="w-3 h-3 mr-1" />
+                            Cancel
+                          </button>
                         )}
                       </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => setSelectedJob(job)}
-                        className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        <Eye className="w-3 h-3 mr-1" />
-                        Details
-                      </button>
-                      
-                      {job.status === 'DATA_READY' && (
-                        <button
-                          onClick={() => {
-                            setValidationJobId(job.id);
-                            setShowValidationModal(true);
-                          }}
-                          className="inline-flex items-center px-3 py-1.5 border border-green-300 text-xs font-medium rounded text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                        >
-                          <Download className="w-3 h-3 mr-1" />
-                          Download CSV
-                        </button>
-                      )}
-                      
-                      {['QUEUED', 'RUNNING', 'EXTRACTING', 'LOADING'].includes(job.status) && (
-                        <button
-                          onClick={() => handleCancelJob(job.id)}
-                          disabled={cancelJobMutation.isPending}
-                          className="inline-flex items-center px-3 py-1.5 border border-red-300 text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
-                        >
-                          <Pause className="w-3 h-3 mr-1" />
-                          Cancel
-                        </button>
-                      )}
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -705,12 +786,12 @@ export const Jobs: React.FC = () => {
       {/* Job Details Modal (placeholder) */}
       {selectedJob && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-[500px] shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto p-5 border w-[500px] shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium text-gray-900">Job Details</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Job Details</h3>
               <button
                 onClick={() => setSelectedJob(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               >
                 <XCircle className="w-5 h-5" />
               </button>
@@ -718,23 +799,23 @@ export const Jobs: React.FC = () => {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Job ID</label>
-                <p className="mt-1 text-sm text-gray-900 font-mono">{selectedJob.id}</p>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Job ID</label>
+                <p className="mt-1 text-sm text-gray-900 dark:text-white font-mono">{selectedJob.id}</p>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700">Status</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
                 <div className="mt-1">{getStatusBadge(selectedJob.status)}</div>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700">Source</label>
-                <p className="mt-1 text-sm text-gray-900">{getConnectorName(selectedJob.sourceConnectorId)}</p>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Source</label>
+                <p className="mt-1 text-sm text-gray-900 dark:text-white">{getConnectorName(selectedJob.sourceConnectorId)}</p>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700">Destination</label>
-                <p className="mt-1 text-sm text-gray-900">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Destination</label>
+                <p className="mt-1 text-sm text-gray-900 dark:text-white">
                   {selectedJob.jobType === 'EXTRACTION' || !selectedJob.destinationConnectorId 
                     ? 'Extraction (No destination)'
                     : getConnectorName(selectedJob.destinationConnectorId)
@@ -743,19 +824,28 @@ export const Jobs: React.FC = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700">Entities</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedJob.entities.join(', ')}</p>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Entities</label>
+                <p className="mt-1 text-sm text-gray-900 dark:text-white">{selectedJob.entities.join(', ')}</p>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700">Created</label>
-                <p className="mt-1 text-sm text-gray-900">{formatDate(selectedJob.createdAt)}</p>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Created</label>
+                <p className="mt-1 text-sm text-gray-900 dark:text-white">{formatDate(selectedJob.createdAt)}</p>
               </div>
               
               {selectedJob.completedAt && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Completed</label>
-                  <p className="mt-1 text-sm text-gray-900">{formatDate(selectedJob.completedAt)}</p>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Completed</label>
+                  <p className="mt-1 text-sm text-gray-900 dark:text-white">{formatDate(selectedJob.completedAt)}</p>
+                </div>
+              )}
+              
+              {selectedJob.status === 'FAILED' && selectedJob.error && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Error Description</label>
+                  <div className="mt-1 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+                    <p className="text-sm text-red-700 dark:text-red-300">{selectedJob.error}</p>
+                  </div>
                 </div>
               )}
             </div>
@@ -763,7 +853,7 @@ export const Jobs: React.FC = () => {
             <div className="mt-6 flex justify-end">
               <button
                 onClick={() => setSelectedJob(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 Close
               </button>

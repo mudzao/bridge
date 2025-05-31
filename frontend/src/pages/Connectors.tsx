@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
-import { ToastContainer } from '@/components/ui/Toast';
 
 interface Connector {
   id: string;
@@ -58,7 +57,7 @@ export const Connectors: React.FC = () => {
   const [testingConnector, setTestingConnector] = useState<string | null>(null);
   const [editingConnector, setEditingConnector] = useState<Connector | null>(null);
   const queryClient = useQueryClient();
-  const { toasts, showSuccess, showError, removeToast } = useToast();
+  const { showSuccess, showError } = useToast();
 
   // Fetch connectors
   const { data: connectorsResponse, isLoading, error } = useQuery({
@@ -257,15 +256,15 @@ export const Connectors: React.FC = () => {
 
     return (
       <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-        <div className="relative top-20 mx-auto p-5 border w-[500px] shadow-lg rounded-md bg-white">
+        <div className="relative top-20 mx-auto p-5 border w-[500px] shadow-lg rounded-md bg-white dark:bg-gray-800">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Edit Connector</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Edit Connector</h3>
             <button
               onClick={() => {
                 setEditingConnector(null);
                 reset();
               }}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             >
               <X className="w-5 h-5" />
             </button>
@@ -274,29 +273,29 @@ export const Connectors: React.FC = () => {
           <form onSubmit={handleSubmit(handleSaveConnector)} className="space-y-4">
             {/* Common fields */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Name</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
               <input
                 {...register('name')}
                 type="text"
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
               />
               {errors.name && (
-                <p className="mt-1 text-sm text-red-600">{errors.name.message as string}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.name.message as string}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Status</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
               <select
                 {...register('status')}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
               >
                 <option value="ACTIVE">Active</option>
                 <option value="DISABLED">Disabled</option>
                 <option value="ERROR" disabled>Error</option>
               </select>
               {errors.status && (
-                <p className="mt-1 text-sm text-red-600">{errors.status.message as string}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.status.message as string}</p>
               )}
             </div>
 
@@ -304,26 +303,26 @@ export const Connectors: React.FC = () => {
             {editingConnector.connectorType === 'FRESHSERVICE' && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Domain</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Domain</label>
                   <input
                     {...register('domain')}
                     type="text"
                     placeholder="your-domain.freshservice.com"
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   />
                   {errors.domain && (
-                    <p className="mt-1 text-sm text-red-600">{errors.domain.message as string}</p>
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.domain.message as string}</p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">API Key</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">API Key</label>
                   <input
                     {...register('apiKey')}
                     type="password"
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   />
                   {errors.apiKey && (
-                    <p className="mt-1 text-sm text-red-600">{errors.apiKey.message as string}</p>
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.apiKey.message as string}</p>
                   )}
                 </div>
               </>
@@ -332,37 +331,37 @@ export const Connectors: React.FC = () => {
             {editingConnector.connectorType === 'SERVICENOW' && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Instance</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Instance</label>
                   <input
                     {...register('instance')}
                     type="text"
                     placeholder="your-instance.service-now.com"
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   />
                   {errors.instance && (
-                    <p className="mt-1 text-sm text-red-600">{errors.instance.message as string}</p>
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.instance.message as string}</p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Username</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
                   <input
                     {...register('username')}
                     type="text"
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   />
                   {errors.username && (
-                    <p className="mt-1 text-sm text-red-600">{errors.username.message as string}</p>
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.username.message as string}</p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Password</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
                   <input
                     {...register('password')}
                     type="password"
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   />
                   {errors.password && (
-                    <p className="mt-1 text-sm text-red-600">{errors.password.message as string}</p>
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.password.message as string}</p>
                   )}
                 </div>
               </>
@@ -371,37 +370,37 @@ export const Connectors: React.FC = () => {
             {editingConnector.connectorType === 'ZENDESK' && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Subdomain</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Subdomain</label>
                   <input
                     {...register('subdomain')}
                     type="text"
                     placeholder="your-subdomain.zendesk.com"
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   />
                   {errors.subdomain && (
-                    <p className="mt-1 text-sm text-red-600">{errors.subdomain.message as string}</p>
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.subdomain.message as string}</p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
                   <input
                     {...register('email')}
                     type="email"
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   />
                   {errors.email && (
-                    <p className="mt-1 text-sm text-red-600">{errors.email.message as string}</p>
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email.message as string}</p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">API Token</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">API Token</label>
                   <input
                     {...register('apiToken')}
                     type="password"
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   />
                   {errors.apiToken && (
-                    <p className="mt-1 text-sm text-red-600">{errors.apiToken.message as string}</p>
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.apiToken.message as string}</p>
                   )}
                 </div>
               </>
@@ -415,7 +414,7 @@ export const Connectors: React.FC = () => {
                   setEditingConnector(null);
                   reset();
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 Cancel
               </button>
@@ -439,21 +438,21 @@ export const Connectors: React.FC = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Connectors</h1>
-            <p className="mt-1 text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Connectors</h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Manage connections to your helpdesk systems
             </p>
           </div>
         </div>
         
-        <div className="bg-white shadow rounded-lg p-6">
+        <div className="bg-white dark:bg-gray-700 shadow rounded-lg p-6">
           <div className="animate-pulse space-y-4">
             {[...Array(3)].map((_, i) => (
               <div key={i} className="flex space-x-4">
-                <div className="rounded-lg bg-gray-200 h-16 w-16"></div>
+                <div className="rounded-lg bg-gray-200 dark:bg-gray-600 h-16 w-16"></div>
                 <div className="flex-1 space-y-2 py-1">
-                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-3/4"></div>
+                  <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-1/2"></div>
                 </div>
               </div>
             ))}
@@ -468,18 +467,18 @@ export const Connectors: React.FC = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Connectors</h1>
-            <p className="mt-1 text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Connectors</h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Manage connections to your helpdesk systems
             </p>
           </div>
         </div>
         
-        <div className="bg-white shadow rounded-lg p-6">
+        <div className="bg-white dark:bg-gray-700 shadow rounded-lg p-6">
           <div className="text-center py-6">
             <AlertCircle className="mx-auto h-12 w-12 text-red-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Error loading connectors</h3>
-            <p className="mt-1 text-sm text-gray-500">
+            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Error loading connectors</h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               {(error as Error).message}
             </p>
           </div>
@@ -490,14 +489,11 @@ export const Connectors: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Toast Container */}
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
-      
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Connectors</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Connectors</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Manage connections to your helpdesk systems
           </p>
         </div>
@@ -511,104 +507,102 @@ export const Connectors: React.FC = () => {
       </div>
 
       {/* Connectors List */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
-          {connectors.length === 0 ? (
-            <div className="text-center py-6">
-              <Database className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No connectors</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Get started by adding your first connector.
-              </p>
-              <div className="mt-6">
-                <button
-                  onClick={() => alert('Add connector functionality coming soon!')}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Connector
-                </button>
-              </div>
+      <div className="space-y-4">
+        {connectors.length === 0 ? (
+          <div className="bg-white dark:bg-gray-900 shadow rounded-lg p-6 text-center">
+            <Database className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No connectors</h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Get started by adding your first connector.
+            </p>
+            <div className="mt-6">
+              <button
+                onClick={() => alert('Add connector functionality coming soon!')}
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Connector
+              </button>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {connectors.map((connector: Connector) => (
-                <div
-                  key={connector.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex-shrink-0">
-                        {getConnectorIcon(connector.connectorType)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2">
-                          <h3 className="text-lg font-medium text-gray-900 truncate">
-                            {connector.name}
-                          </h3>
-                          {getStatusBadge(connector.status)}
-                        </div>
-                        <p className="text-sm text-gray-500">
-                          {connector.connectorType} • Created {formatDate(connector.createdAt)}
-                        </p>
-                        {connector.updatedAt !== connector.createdAt && (
-                          <p className="text-xs text-gray-400">
-                            Last updated {formatDate(connector.updatedAt)}
-                          </p>
-                        )}
-                      </div>
+          </div>
+        ) : (
+          <>
+            {connectors.map((connector: Connector) => (
+              <div
+                key={connector.id}
+                className="bg-white dark:bg-gray-900 shadow rounded-lg p-6"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex-shrink-0">
+                      {getConnectorIcon(connector.connectorType)}
                     </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handleTestConnection(connector.id)}
-                        disabled={testingConnector === connector.id}
-                        className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                      >
-                        <TestTube className="w-3 h-3 mr-1" />
-                        {testingConnector === connector.id ? 'Testing...' : 'Test'}
-                      </button>
-                      
-                      <button
-                        onClick={() => handleEditConnector(connector)}
-                        className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        <Edit className="w-3 h-3 mr-1" />
-                        Edit
-                      </button>
-                      
-                      <button
-                        onClick={() => handleDeleteConnector(connector.id, connector.name)}
-                        disabled={deleteConnectorMutation.isPending}
-                        className="inline-flex items-center px-3 py-1.5 border border-red-300 text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
-                      >
-                        <Trash2 className="w-3 h-3 mr-1" />
-                        Delete
-                      </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white truncate">
+                          {connector.name}
+                        </h3>
+                        {getStatusBadge(connector.status)}
+                      </div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {connector.connectorType} • Created {formatDate(connector.createdAt)}
+                      </p>
+                      {connector.updatedAt !== connector.createdAt && (
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                          Last updated {formatDate(connector.updatedAt)}
+                        </p>
+                      )}
                     </div>
                   </div>
                   
-                  {/* Configuration Preview */}
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <div className="text-xs text-gray-500">
-                      <span className="font-medium">Configuration:</span>
-                      {connector.connectorType === 'FRESHSERVICE' && connector.config.domain && (
-                        <span className="ml-2">Domain: {connector.config.domain}</span>
-                      )}
-                      {connector.connectorType === 'SERVICENOW' && connector.config.instance && (
-                        <span className="ml-2">Instance: {connector.config.instance}</span>
-                      )}
-                      {connector.connectorType === 'ZENDESK' && connector.config.subdomain && (
-                        <span className="ml-2">Subdomain: {connector.config.subdomain}</span>
-                      )}
-                    </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => handleTestConnection(connector.id)}
+                      disabled={testingConnector === connector.id}
+                      className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                    >
+                      <TestTube className="w-3 h-3 mr-1" />
+                      {testingConnector === connector.id ? 'Testing...' : 'Test'}
+                    </button>
+                    
+                    <button
+                      onClick={() => handleEditConnector(connector)}
+                      className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      <Edit className="w-3 h-3 mr-1" />
+                      Edit
+                    </button>
+                    
+                    <button
+                      onClick={() => handleDeleteConnector(connector.id, connector.name)}
+                      disabled={deleteConnectorMutation.isPending}
+                      className="inline-flex items-center px-3 py-1.5 border border-red-300 dark:border-red-600 text-xs font-medium rounded text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                    >
+                      <Trash2 className="w-3 h-3 mr-1" />
+                      Delete
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+                
+                {/* Configuration Preview */}
+                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-600">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="font-medium">Configuration:</span>
+                    {connector.connectorType === 'FRESHSERVICE' && connector.config.domain && (
+                      <span className="ml-2">Domain: {connector.config.domain}</span>
+                    )}
+                    {connector.connectorType === 'SERVICENOW' && connector.config.instance && (
+                      <span className="ml-2">Instance: {connector.config.instance}</span>
+                    )}
+                    {connector.connectorType === 'ZENDESK' && connector.config.subdomain && (
+                      <span className="ml-2">Subdomain: {connector.config.subdomain}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       {/* Edit Modal */}

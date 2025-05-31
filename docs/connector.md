@@ -1,166 +1,225 @@
-# Project Bridge - Connector Architecture Guide
+# Project Bridge - Bidirectional Connector Architecture Guide
 
 ## 📋 Overview
 
-This document provides a comprehensive guide for adding new connectors to Project Bridge. It explains the file structure, entity organization, and step-by-step process for implementing connectors for different helpdesk systems.
+This document provides a comprehensive guide for implementing **bidirectional connectors** in Project Bridge. The latest architecture supports both **data extraction FROM** and **data loading TO** external systems using a single connector configuration with separate extraction and loading entity definitions.
 
-## 🏗️ Connector Architecture
+## 🔄 Bidirectional Connector Architecture
 
-Project Bridge uses an **abstract base class pattern** with a **factory method** for creating connector instances. This allows for consistent behavior across all connectors while maintaining flexibility for system-specific implementations.
+Project Bridge uses an **enhanced abstract base class pattern** with **bidirectional operations** for comprehensive data migration capabilities. This allows for extraction, transformation, validation, and loading operations through a unified connector interface.
 
 ### Core Components
 
-- **BaseConnector**: Abstract base class with common functionality
-- **ConnectorInterface**: TypeScript interface defining the contract
+- **BaseConnector**: Abstract base class with common functionality for both extraction and loading
+- **ConnectorInterface**: Enhanced TypeScript interface supporting bidirectional operations
+- **EntityDefinition**: Comprehensive entity specifications with separate extraction/loading configs
 - **ConnectorFactory**: Factory pattern for dynamic connector creation
 - **Connector Implementations**: System-specific implementations (Freshservice, ServiceNow, etc.)
 
-## 📁 File Structure for New Connectors
+### Bidirectional Operations
+
+Each connector supports both:
+- **🔽 Extraction Operations**: Extract data FROM external systems
+- **🔼 Loading Operations**: Load data TO external systems
+- **🔄 Migration Operations**: Complete end-to-end migration (extract → transform → load)
+
+## 📁 Enhanced File Structure for Bidirectional Connectors
 
 ### Existing Implementation Example (Freshservice)
 
-Here's the actual file structure for the **Freshservice** connector (already implemented):
+Here's the actual file structure for the **Freshservice** bidirectional connector:
 
 ```
 backend/src/connectors/
-├── freshservice/                        # ✅ IMPLEMENTED: Freshservice connector
-│   ├── FreshserviceConnector.ts        # ✅ Main implementation (448 lines)
-│   └── FreshserviceTypes.ts            # ✅ Types & schemas (214 lines)
-├── base/                                # ✅ EXISTS: Base classes
-│   ├── ConnectorInterface.ts           # ✅ Core interface (89 lines)
-│   ├── BaseConnector.ts                # ✅ Abstract base (167 lines)
-│   └── ConnectorFactory.ts             # ✅ Factory with Freshservice case (53 lines)
-└── index.ts                             # ✅ Exports Freshservice (11 lines)
+├── freshservice/                        # ✅ IMPLEMENTED: Freshservice bidirectional connector
+│   ├── FreshserviceConnector.ts        # ✅ Enhanced implementation (600+ lines)
+│   ├── FreshserviceTypes.ts            # ✅ Types & schemas (300+ lines)
+│   └── FreshserviceEntityDefinitions.ts # ✅ Bidirectional entity configs (400+ lines)
+├── base/                                # ✅ EXISTS: Enhanced base classes
+│   ├── ConnectorInterface.ts           # ✅ Bidirectional interface (150+ lines)
+│   ├── BaseConnector.ts                # ✅ Enhanced abstract base (250+ lines)
+│   └── ConnectorFactory.ts             # ✅ Factory with bidirectional support (80+ lines)
+└── index.ts                             # ✅ Exports enhanced connectors (15+ lines)
 ```
 
-### Required Files for New Connectors
+### Required Files for New Bidirectional Connectors
 
-For adding a new connector (e.g., **ServiceNow**):
+For adding a new bidirectional connector (e.g., **ServiceNow**):
 
 ```
 backend/src/connectors/
-├── servicenow/                          # 🆕 CREATE: New connector directory
-│   ├── ServiceNowConnector.ts          # 🆕 CREATE: Main implementation
-│   └── ServiceNowTypes.ts              # 🆕 CREATE: Types & schemas
-├── base/                                # ✅ EXISTS: Base classes (no changes)
+├── servicenow/                          # 🆕 CREATE: New bidirectional connector directory
+│   ├── ServiceNowConnector.ts          # 🆕 CREATE: Enhanced implementation with loading
+│   ├── ServiceNowTypes.ts              # 🆕 CREATE: Types & schemas
+│   └── ServiceNowEntityDefinitions.ts  # 🆕 CREATE: Bidirectional entity configurations
+├── base/                                # ✅ EXISTS: Enhanced base classes (no changes)
 │   ├── ConnectorInterface.ts           
 │   ├── BaseConnector.ts                
 │   └── ConnectorFactory.ts             # 🔄 UPDATE: Add ServiceNow case
 └── index.ts                             # 🔄 UPDATE: Export ServiceNow
 ```
 
-### Summary of Changes
+### Summary of Changes for Bidirectional Connectors
 
-**To onboard any new connector:**
+**To onboard any new bidirectional connector:**
 
-#### 🆕 **2 New Files:**
-1. `{connector}/ConnectorName.ts` - Main implementation
+#### 🆕 **3 New Files:**
+1. `{connector}/ConnectorName.ts` - Enhanced implementation with extraction AND loading
 2. `{connector}/ConnectorNameTypes.ts` - Types & schemas
+3. `{connector}/ConnectorNameEntityDefinitions.ts` - Bidirectional entity configurations
 
 #### 🔄 **2 Updated Files:**
 1. `base/ConnectorFactory.ts` - Add new connector case
 2. `index.ts` - Add new connector export
 
-**Total: 2 new files + 2 updates = 4 file changes**
+**Total: 3 new files + 2 updates = 5 file changes**
 
-## 🗂️ Entity Type Organization
+## 🗂️ Enhanced Entity Definition Architecture
 
-### Entity Types in FreshserviceTypes.ts (Real Implementation)
+### Bidirectional Entity Definitions
 
-The actual Freshservice `Types.ts` file organizes entities as follows:
+Each entity now has separate configurations for extraction and loading operations:
 
-```
-backend/src/connectors/freshservice/FreshserviceTypes.ts
-├── Configuration
-│   └── FreshserviceConfig interface
-├── Entity Interfaces  
-│   ├── FreshserviceTicket (tickets)
-│   ├── FreshserviceAsset (assets)  
-│   ├── FreshserviceUser (users)
-│   ├── FreshserviceGroup (groups)
-│   └── FreshserviceAttachment (attachments)
-├── Response Wrappers
-│   ├── FreshserviceTicketsResponse
-│   ├── FreshserviceAssetsResponse
-│   ├── FreshserviceUsersResponse
-│   └── FreshserviceGroupsResponse
-├── Constants & Mappings
-│   ├── FRESHSERVICE_TICKET_STATUS
-│   ├── FRESHSERVICE_TICKET_PRIORITY
-│   └── FRESHSERVICE_TICKET_SOURCE
-└── Validation Schemas
-    ├── tickets: { field validation }
-    ├── assets: { field validation }
-    ├── users: { field validation }
-    └── groups: { field validation }
-```
-
-### Entity Processing in FreshserviceConnector.ts (Real Implementation)
-
-The actual Freshservice connector implementation organizes entity processing as follows:
-
-```
-backend/src/connectors/freshservice/FreshserviceConnector.ts
-├── Configuration & Setup
-│   ├── constructor() → Sets up metadata and HTTP client
-│   ├── validateConfig() → Validates domain and apiKey
-│   └── setupHttpClient() → Configures SSL/TLS and Basic auth
-├── Connection Management
-│   ├── testConnection() → Tests /agents/me endpoint
-│   └── authenticate() → Verifies API credentials
-├── Data Extraction (one method per entity)
-│   ├── extractTickets() → /api/v2/tickets
-│   ├── extractAssets() → /api/v2/assets
-│   ├── extractUsers() → /api/v2/requesters
-│   └── extractGroups() → /api/v2/groups
-└── Data Transformation (one method per entity)
-    ├── transformTickets() → Maps to internal ticket format
-    ├── transformAssets() → Maps to internal asset format
-    ├── transformUsers() → Maps to internal user format
-    └── transformGroups() → Maps to internal group format
+```typescript
+export interface EntityDefinition {
+  name: string;
+  type: EntityType;
+  
+  // 🔽 Extraction configuration
+  extraction: {
+    endpoint: string;        // GET /api/v2/tickets
+    method: 'GET';
+    fields: Record<string, FieldDefinition>;
+    pagination?: PaginationConfig;
+    include?: string[];      // Additional data to include
+  };
+  
+  // 🔼 Loading configuration  
+  loading: {
+    endpoint: string;        // POST /api/v2/tickets
+    method: 'POST' | 'PUT' | 'PATCH';
+    fields: Record<string, FieldDefinition>;
+    requiredFields: string[];
+    validation?: Record<string, ValidationRule>;
+    batchSize?: number;      // Maximum records per batch
+    rateLimit?: number;      // Requests per minute
+  };
+}
 ```
 
-## 🎯 Entity Type Mapping
+### Field-Level Control
 
-### Standard Entity Types
+Enhanced field definitions with operation-specific controls:
 
-| **Entity Type** | **Extract Method** | **Transform Method** | **Types Interface** | **Common API Endpoint** |
-|-----------------|-------------------|---------------------|--------------------|-----------------------|
-| 🎫 **Tickets/Incidents** | `extractTickets()` | `transformTickets()` | `ConnectorNameTicket` | `/tickets` or `/incidents` |
-| 🏢 **Assets** | `extractAssets()` | `transformAssets()` | `ConnectorNameAsset` | `/assets` |
-| 👥 **Users** | `extractUsers()` | `transformUsers()` | `ConnectorNameUser` | `/users` or `/requesters` |
-| 👥 **Groups** | `extractGroups()` | `transformGroups()` | `ConnectorNameGroup` | `/groups` |
-| 🔧 **Change Requests** | `extractChangeRequests()` | `transformChangeRequests()` | `ConnectorNameChangeRequest` | `/change_requests` |
-| 🐛 **Problems** | `extractProblems()` | `transformProblems()` | `ConnectorNameProblem` | `/problems` |
+```typescript
+export interface FieldDefinition {
+  type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+  required?: boolean;
+  readonly?: boolean;      // 🔒 Cannot be modified during loading
+  createOnly?: boolean;    // ✏️ Only available during entity creation
+  updateOnly?: boolean;    // 🔄 Only available during entity updates
+  validation?: ValidationRule;
+  mapping?: string;        // Field mapping for transformation
+  defaultValue?: any;      // Default value for loading
+}
+```
 
-### System-Specific Examples
+### Field Access Patterns
 
-#### Freshservice (✅ Implemented)
-| **Entity Type** | **Freshservice Endpoint** | **Extract Method** | **Transform Method** | **Interface** |
-|-----------------|---------------------------|-------------------|---------------------|---------------|
-| 🎫 **Tickets** | `/api/v2/tickets` | `extractTickets()` | `transformTickets()` | `FreshserviceTicket` |
-| 🏢 **Assets** | `/api/v2/assets` | `extractAssets()` | `transformAssets()` | `FreshserviceAsset` |
-| 👥 **Users** | `/api/v2/requesters` | `extractUsers()` | `transformUsers()` | `FreshserviceUser` |
-| 👥 **Groups** | `/api/v2/groups` | `extractGroups()` | `transformGroups()` | `FreshserviceGroup` |
+| **Field Type** | **Extraction** | **Loading (Create)** | **Loading (Update)** | **Example Fields** |
+|----------------|----------------|---------------------|---------------------|--------------------|
+| **🔒 ReadOnly** | ✅ Extract | ❌ Skip | ❌ Skip | `id`, `created_at`, `updated_at` |
+| **✏️ CreateOnly** | ✅ Extract | ✅ Include | ❌ Skip | `initial_status`, `creation_source` |
+| **🔄 UpdateOnly** | ✅ Extract | ❌ Skip | ✅ Include | `resolution_notes`, `close_date` |
+| **🔄 Bidirectional** | ✅ Extract | ✅ Include | ✅ Include | `subject`, `description`, `priority` |
 
-#### ServiceNow (Example)
-| **Entity Type** | **ServiceNow Table** | **Extract Method** | **Transform Method** |
-|-----------------|---------------------|-------------------|---------------------|
-| 🎫 **Tickets** | `/table/incident` | `extractIncidents()` | `transformIncidents()` |
-| 🏢 **Assets** | `/table/alm_asset` | `extractAssets()` | `transformAssets()` |
-| 👥 **Users** | `/table/sys_user` | `extractUsers()` | `transformUsers()` |
-| 🔧 **Change Requests** | `/table/change_request` | `extractChangeRequests()` | `transformChangeRequests()` |
+## 🎯 Enhanced Entity Type Organization
 
-#### Zendesk (Example)
-| **Entity Type** | **Zendesk Endpoint** | **Extract Method** | **Transform Method** |
-|-----------------|---------------------|-------------------|---------------------|
-| 🎫 **Tickets** | `/api/v2/tickets` | `extractTickets()` | `transformTickets()` |
-| 👥 **Users** | `/api/v2/users` | `extractUsers()` | `transformUsers()` |
-| 👥 **Groups** | `/api/v2/groups` | `extractGroups()` | `transformGroups()` |
+### Entity Definitions in ConnectorNameEntityDefinitions.ts
 
-## 📋 Step-by-Step Connector Implementation
+The new architecture organizes entity definitions as follows:
 
-### Step 1: Create Directory Structure
+```
+backend/src/connectors/{connector}/ConnectorNameEntityDefinitions.ts
+├── Entity Configurations
+│   ├── TICKETS_ENTITY: EntityDefinition
+│   ├── ASSETS_ENTITY: EntityDefinition
+│   ├── USERS_ENTITY: EntityDefinition
+│   └── GROUPS_ENTITY: EntityDefinition
+├── Validation Rules
+│   ├── ticketValidation: ValidationRule[]
+│   ├── assetValidation: ValidationRule[]
+│   └── userValidation: ValidationRule[]
+└── Export
+    └── CONNECTOR_ENTITY_DEFINITIONS: Record<string, EntityDefinition>
+```
+
+### Example Entity Definition (Tickets)
+
+```typescript
+export const TICKETS_ENTITY: EntityDefinition = {
+  name: 'tickets',
+  type: EntityType.TICKETS,
+  
+  // 🔽 Extraction Configuration
+  extraction: {
+    endpoint: '/api/v2/tickets',
+    method: 'GET',
+    fields: {
+      id: { type: 'number', readonly: true },
+      subject: { type: 'string', required: true },
+      description: { type: 'string' },
+      status: { type: 'number', required: true },
+      priority: { type: 'number', required: true },
+      type: { type: 'string', required: true },
+      source: { type: 'number', createOnly: true },
+      requester_id: { type: 'number', required: true },
+      responder_id: { type: 'number' },
+      group_id: { type: 'number' },
+      created_at: { type: 'string', readonly: true },
+      updated_at: { type: 'string', readonly: true },
+      custom_fields: { type: 'object' }
+    },
+    pagination: {
+      method: 'page',
+      pageSize: 100,
+      maxPages: 1000
+    },
+    include: ['requester', 'stats']
+  },
+  
+  // 🔼 Loading Configuration
+  loading: {
+    endpoint: '/api/v2/tickets',
+    method: 'POST',
+    fields: {
+      subject: { type: 'string', required: true },
+      description: { type: 'string', defaultValue: '' },
+      status: { type: 'number', required: true, defaultValue: 2 },
+      priority: { type: 'number', required: true, defaultValue: 1 },
+      type: { type: 'string', required: true, defaultValue: 'Incident' },
+      source: { type: 'number', required: true, defaultValue: 2 },
+      requester_id: { type: 'number', required: true },
+      responder_id: { type: 'number' },
+      group_id: { type: 'number' },
+      custom_fields: { type: 'object', defaultValue: {} }
+    },
+    requiredFields: ['subject', 'status', 'priority', 'type', 'requester_id'],
+    validation: {
+      subject: { minLength: 1, maxLength: 255 },
+      status: { enum: [1, 2, 3, 4, 5, 6] },
+      priority: { enum: [1, 2, 3, 4] },
+      email: { pattern: '^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$' }
+    },
+    batchSize: 50,
+    rateLimit: 100
+  }
+};
+```
+
+## 📋 Step-by-Step Bidirectional Connector Implementation
+
+### Step 1: Create Enhanced Directory Structure
 
 ```bash
 mkdir backend/src/connectors/{connector_name}
@@ -168,19 +227,21 @@ mkdir backend/src/connectors/{connector_name}
 
 ### Step 2: Define Types ({ConnectorName}Types.ts)
 
-**Reference**: `backend/src/connectors/freshservice/FreshserviceTypes.ts`
-
-Create the types file with the following sections:
+Enhanced types file with loading support:
 
 ```typescript
-// 1. Configuration Interface
+// 1. Enhanced Configuration Interface
 export interface ConnectorNameConfig {
-  domain: string;        // Required: connector domain
-  apiKey: string;        // Required: API authentication key
-  baseUrl?: string;      // Optional: computed base URL
+  domain: string;
+  apiKey: string;
+  baseUrl?: string;
+  // Loading-specific config
+  loadingEnabled?: boolean;
+  batchSize?: number;
+  rateLimit?: number;
 }
 
-// 2. Entity Interfaces (one per supported entity)
+// 2. Entity Interfaces (unchanged from extraction-only)
 export interface ConnectorNameTicket {
   id: number;
   subject: string;
@@ -195,50 +256,49 @@ export interface ConnectorNameTicket {
   created_at: string;
   updated_at: string;
   custom_fields: Record<string, any>;
-  // ... other ticket fields
 }
 
-export interface ConnectorNameAsset {
-  id: number;
-  display_id: number;
-  name: string;
-  asset_type_id: number;
-  impact: string;
-  usage_type: string;
-  user_id: number | null;
-  created_at: string;
-  updated_at: string;
-  // ... other asset fields
+// 3. Loading-specific Interfaces
+export interface LoadResult {
+  success: boolean;
+  entityType: string;
+  processed: number;
+  successful: number;
+  failed: number;
+  errors: LoadError[];
+  summary: {
+    created: number;
+    updated: number;
+    skipped: number;
+  };
 }
 
-export interface ConnectorNameUser {
-  id: number;
-  first_name: string;
-  last_name: string;
-  email: string;
-  active: boolean;
-  created_at: string;
-  updated_at: string;
-  // ... other user fields
+export interface LoadError {
+  record: any;
+  error: string;
+  field?: string;
+  code?: string;
 }
 
-// 3. Response Wrappers
+// 4. Validation Rules
+export interface ValidationRule {
+  required?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  enum?: (string | number)[];
+  min?: number;
+  max?: number;
+  custom?: (value: any) => boolean | string;
+}
+
+// 5. Response Wrappers (unchanged)
 export interface ConnectorNameTicketsResponse {
   tickets: ConnectorNameTicket[];
   total?: number;
 }
 
-export interface ConnectorNameAssetsResponse {
-  assets: ConnectorNameAsset[];
-  total?: number;
-}
-
-export interface ConnectorNameUsersResponse {
-  requesters: ConnectorNameUser[];
-  total?: number;
-}
-
-// 4. Constants & Mappings
+// 6. Constants & Mappings (unchanged)
 export const CONNECTOR_TICKET_STATUS = {
   1: 'Open',
   2: 'Pending',
@@ -247,61 +307,163 @@ export const CONNECTOR_TICKET_STATUS = {
   5: 'Waiting on Customer',
   6: 'Waiting on Third Party'
 } as const;
-
-export const CONNECTOR_TICKET_PRIORITY = {
-  1: 'Low',
-  2: 'Medium', 
-  3: 'High',
-  4: 'Urgent'
-} as const;
-
-export const CONNECTOR_TICKET_SOURCE = {
-  1: 'Email',
-  2: 'Portal',
-  3: 'Phone',
-  4: 'Chat'
-} as const;
-
-// 5. Validation Schemas
-export const CONNECTOR_SCHEMAS = {
-  tickets: {
-    id: 'number',
-    subject: 'string',
-    description: 'string',
-    status: 'number',
-    priority: 'number',
-    type: 'string',
-    created_at: 'string',
-    updated_at: 'string'
-  },
-  assets: {
-    id: 'number',
-    display_id: 'number',
-    name: 'string',
-    asset_type_id: 'number',
-    created_at: 'string',
-    updated_at: 'string'
-  },
-  users: {
-    id: 'number',
-    first_name: 'string',
-    last_name: 'string',
-    email: 'string',
-    active: 'boolean',
-    created_at: 'string',
-    updated_at: 'string'
-  }
-} as const;
 ```
 
-### Step 3: Implement Connector ({ConnectorName}Connector.ts)
+### Step 3: Create Entity Definitions ({ConnectorName}EntityDefinitions.ts)
 
-**Reference**: `backend/src/connectors/freshservice/FreshserviceConnector.ts`
-
-Create the main connector implementation following the Freshservice pattern:
+New file for bidirectional entity configurations:
 
 ```typescript
-import { InternalAxiosRequestConfig, AxiosHeaders } from 'axios';
+import { EntityDefinition, EntityType, FieldDefinition, ValidationRule } from '../base/ConnectorInterface';
+
+// Tickets Entity Definition
+export const TICKETS_ENTITY: EntityDefinition = {
+  name: 'tickets',
+  type: EntityType.TICKETS,
+  
+  extraction: {
+    endpoint: '/api/v2/tickets',
+    method: 'GET',
+    fields: {
+      id: { type: 'number', readonly: true },
+      subject: { type: 'string', required: true },
+      description: { type: 'string' },
+      status: { type: 'number', required: true },
+      priority: { type: 'number', required: true },
+      type: { type: 'string', required: true },
+      source: { type: 'number', createOnly: true },
+      requester_id: { type: 'number', required: true },
+      responder_id: { type: 'number' },
+      group_id: { type: 'number' },
+      created_at: { type: 'string', readonly: true },
+      updated_at: { type: 'string', readonly: true },
+      custom_fields: { type: 'object' }
+    },
+    pagination: {
+      method: 'page',
+      pageSize: 100
+    }
+  },
+  
+  loading: {
+    endpoint: '/api/v2/tickets',
+    method: 'POST',
+    fields: {
+      subject: { type: 'string', required: true },
+      description: { type: 'string', defaultValue: '' },
+      status: { type: 'number', required: true, defaultValue: 2 },
+      priority: { type: 'number', required: true, defaultValue: 1 },
+      type: { type: 'string', required: true, defaultValue: 'Incident' },
+      source: { type: 'number', required: true, defaultValue: 2 },
+      requester_id: { type: 'number', required: true },
+      responder_id: { type: 'number' },
+      group_id: { type: 'number' },
+      custom_fields: { type: 'object', defaultValue: {} }
+    },
+    requiredFields: ['subject', 'status', 'priority', 'type', 'requester_id'],
+    validation: {
+      subject: { minLength: 1, maxLength: 255 },
+      status: { enum: [1, 2, 3, 4, 5, 6] },
+      priority: { enum: [1, 2, 3, 4] }
+    },
+    batchSize: 50,
+    rateLimit: 100
+  }
+};
+
+// Assets Entity Definition
+export const ASSETS_ENTITY: EntityDefinition = {
+  name: 'assets',
+  type: EntityType.ASSETS,
+  
+  extraction: {
+    endpoint: '/api/v2/assets',
+    method: 'GET',
+    fields: {
+      id: { type: 'number', readonly: true },
+      display_id: { type: 'number', readonly: true },
+      name: { type: 'string', required: true },
+      asset_type_id: { type: 'number', required: true },
+      impact: { type: 'string' },
+      usage_type: { type: 'string' },
+      user_id: { type: 'number' },
+      created_at: { type: 'string', readonly: true },
+      updated_at: { type: 'string', readonly: true }
+    }
+  },
+  
+  loading: {
+    endpoint: '/api/v2/assets',
+    method: 'POST',
+    fields: {
+      name: { type: 'string', required: true },
+      asset_type_id: { type: 'number', required: true },
+      impact: { type: 'string', defaultValue: 'Low' },
+      usage_type: { type: 'string', defaultValue: 'Loaner' },
+      user_id: { type: 'number' }
+    },
+    requiredFields: ['name', 'asset_type_id'],
+    validation: {
+      name: { minLength: 1, maxLength: 255 },
+      impact: { enum: ['Low', 'Medium', 'High'] }
+    },
+    batchSize: 100,
+    rateLimit: 200
+  }
+};
+
+// Users Entity Definition
+export const USERS_ENTITY: EntityDefinition = {
+  name: 'users',
+  type: EntityType.USERS,
+  
+  extraction: {
+    endpoint: '/api/v2/requesters',
+    method: 'GET',
+    fields: {
+      id: { type: 'number', readonly: true },
+      first_name: { type: 'string', required: true },
+      last_name: { type: 'string', required: true },
+      email: { type: 'string', required: true },
+      active: { type: 'boolean', required: true },
+      created_at: { type: 'string', readonly: true },
+      updated_at: { type: 'string', readonly: true }
+    }
+  },
+  
+  loading: {
+    endpoint: '/api/v2/requesters',
+    method: 'POST',
+    fields: {
+      first_name: { type: 'string', required: true },
+      last_name: { type: 'string', required: true },
+      email: { type: 'string', required: true },
+      active: { type: 'boolean', defaultValue: true }
+    },
+    requiredFields: ['first_name', 'last_name', 'email'],
+    validation: {
+      first_name: { minLength: 1, maxLength: 100 },
+      last_name: { minLength: 1, maxLength: 100 },
+      email: { pattern: '^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$' }
+    },
+    batchSize: 25,
+    rateLimit: 50
+  }
+};
+
+// Export all entity definitions
+export const CONNECTOR_ENTITY_DEFINITIONS: Record<string, EntityDefinition> = {
+  tickets: TICKETS_ENTITY,
+  assets: ASSETS_ENTITY,
+  users: USERS_ENTITY
+};
+```
+
+### Step 4: Implement Enhanced Connector ({ConnectorName}Connector.ts)
+
+Enhanced connector implementation with bidirectional support:
+
+```typescript
 import { BaseConnector } from '../base/BaseConnector';
 import {
   ConnectorConfig,
@@ -309,35 +471,31 @@ import {
   ExtractedData,
   ExtractionOptions,
   ConnectorMetadata,
-  EntityType
+  EntityType,
+  EntityDefinition,
+  LoadResult,
+  LoadOptions
 } from '../base/ConnectorInterface';
 import {
   ConnectorNameConfig,
   ConnectorNameTicket,
-  ConnectorNameAsset,
-  ConnectorNameUser,
-  ConnectorNameTicketsResponse,
-  ConnectorNameAssetsResponse,
-  ConnectorNameUsersResponse,
-  CONNECTOR_SCHEMAS,
-  CONNECTOR_TICKET_STATUS,
-  CONNECTOR_TICKET_PRIORITY,
-  CONNECTOR_TICKET_SOURCE
+  LoadError,
+  CONNECTOR_TICKET_STATUS
 } from './ConnectorNameTypes';
-import axios from 'axios';
+import { CONNECTOR_ENTITY_DEFINITIONS } from './ConnectorNameEntityDefinitions';
 
 export class ConnectorNameConnector extends BaseConnector {
   private connectorConfig: ConnectorNameConfig;
 
   constructor(config: ConnectorConfig) {
-    // 1. Define metadata (following Freshservice pattern)
     const metadata: ConnectorMetadata = {
       name: 'ConnectorName',
       type: 'CONNECTOR_NAME',
-      version: '1.0.0',
-      supportedEntities: ['tickets', 'assets', 'users', 'groups'],
+      version: '2.0.0', // Updated for bidirectional support
+      supportedEntities: ['tickets', 'assets', 'users'],
       authType: 'api_key',
-      baseUrl: `https://${config.domain}/api/v2`
+      baseUrl: `https://${config.domain}/api/v2`,
+      capabilities: ['extraction', 'loading', 'bidirectional'] // New capabilities
     };
 
     super(config, metadata);
@@ -346,7 +504,7 @@ export class ConnectorNameConnector extends BaseConnector {
     this.setupHttpClient();
   }
 
-  // 2. Configuration validation (following Freshservice pattern)
+  // Enhanced validation with loading support
   protected override validateConfig(): void {
     super.validateConfig();
     
@@ -357,399 +515,357 @@ export class ConnectorNameConnector extends BaseConnector {
     if (!this.connectorConfig.apiKey) {
       throw new Error('Connector API key is required');
     }
-  }
 
-  // 3. HTTP client setup (following Freshservice pattern)
-  protected setupHttpClient(): void {
-    this.httpClient = axios.create({
-      baseURL: `https://${this.config.domain}/api/v2`,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Project-Bridge/1.0',
-      },
-      // Add SSL configuration if needed
-      httpsAgent: new (require('https').Agent)({
-        rejectUnauthorized: true,
-        secureProtocol: 'TLSv1_2_method',
-      }),
-    });
-
-    // Add auth headers (modify based on your auth method)
-    this.httpClient.interceptors.request.use((config) => {
-      const auth = Buffer.from(`${this.config.apiKey}:X`).toString('base64');
-      config.headers.Authorization = `Basic ${auth}`;
-      return config;
-    });
-  }
-
-  // 4. Connection testing (following Freshservice pattern)
-  public async testConnection(): Promise<ConnectionTestResult> {
-    try {
-      this.log('info', 'Testing connector connection');
-      
-      // Test connection with a simple endpoint
-      const response = await this.httpClient.get('/agents/me');
-      
-      if (response.status === 200 && response.data) {
-        this.isAuthenticated = true;
-        this.log('info', 'Connector connection test successful');
-        
-        return {
-          success: true,
-          message: 'Successfully connected to connector',
-          details: {
-            domain: this.connectorConfig.domain,
-            user: response.data.agent?.email || 'Unknown',
-            apiVersion: 'v2'
-          }
-        };
-      } else {
-        throw new Error('Invalid response from connector API');
+    // Validate loading-specific config
+    if (this.connectorConfig.loadingEnabled) {
+      if (this.connectorConfig.batchSize && this.connectorConfig.batchSize > 100) {
+        throw new Error('Maximum batch size is 100 for loading operations');
       }
-    } catch (error: any) {
-      this.log('error', 'Connector connection test failed', error);
       
-      return {
-        success: false,
-        message: error.message || 'Failed to connect to connector',
-        details: {
-          domain: this.connectorConfig.domain,
-          error: error.response?.data || error.message
-        }
-      };
+      if (this.connectorConfig.rateLimit && this.connectorConfig.rateLimit > 500) {
+        throw new Error('Maximum rate limit is 500 requests per minute');
+      }
     }
   }
 
-  public async authenticate(): Promise<boolean> {
-    const result = await this.testConnection();
-    return result.success;
+  // Existing extraction methods (unchanged)
+  public async extractData(options: ExtractionOptions): Promise<ExtractedData> {
+    // Implementation same as before
+    // ... existing extraction logic
   }
 
-  // 5. Data extraction methods (following Freshservice pattern)
-  public async extractData(options: ExtractionOptions): Promise<ExtractedData> {
+  // 🆕 NEW: Loading Operations
+  public async loadData(entityType: string, data: any[], options?: LoadOptions): Promise<LoadResult> {
     if (!this.isAuthenticated) {
       const authResult = await this.authenticate();
       if (!authResult) {
-        throw new Error('Authentication failed');
+        throw new Error('Authentication failed for loading operation');
       }
     }
 
-    this.log('info', `Extracting ${options.entityType} data`, { options });
+    this.log('info', `Loading ${data.length} ${entityType} records`, { entityType, count: data.length });
 
-    switch (options.entityType) {
-      case EntityType.TICKETS:
-        return this.extractTickets(options);
-      case EntityType.ASSETS:
-        return this.extractAssets(options);
-      case EntityType.USERS:
-        return this.extractUsers(options);
-      default:
-        throw new Error(`Unsupported entity type: ${options.entityType}`);
+    // Get entity definition for loading configuration
+    const entityDef = this.getEntityDefinition(entityType);
+    if (!entityDef) {
+      throw new Error(`Entity definition not found for ${entityType}`);
     }
+
+    // Validate data before loading
+    const validationResult = await this.validateForLoad(entityType, data);
+    if (!validationResult.valid) {
+      throw new Error(`Data validation failed: ${validationResult.errors.join(', ')}`);
+    }
+
+    // Transform data for loading
+    const transformedData = await this.transformForLoad(entityType, data);
+
+    // Perform actual loading
+    return await this.performLoad(entityType, transformedData, entityDef, options);
   }
 
-  private async extractTickets(options: ExtractionOptions): Promise<ExtractedData> {
-    const endpoint = '/tickets';
-    const params: any = {
-      per_page: options.batchSize || 100,
-      include: 'requester,stats'
-    };
-
-    if (options.startDate) {
-      params.updated_since = options.startDate;
+  // 🆕 NEW: Data validation for loading
+  public async validateForLoad(entityType: string, data: any[]): Promise<{ valid: boolean; errors: string[] }> {
+    const entityDef = this.getEntityDefinition(entityType);
+    if (!entityDef) {
+      return { valid: false, errors: [`Entity definition not found for ${entityType}`] };
     }
 
-    if (options.cursor) {
-      params.page = parseInt(options.cursor);
-    }
+    const errors: string[] = [];
+    const loadingConfig = entityDef.loading;
 
-    try {
-      const response = await this.httpClient.get<ConnectorNameTicketsResponse>(endpoint, { params });
-      const nextCursor = this.getNextCursor(response);
+    for (let i = 0; i < data.length; i++) {
+      const record = data[i];
       
-      return {
-        entityType: options.entityType,
-        records: response.data.tickets || [],
-        totalCount: response.data.total || 0,
-        hasMore: this.hasMorePages(response),
-        ...(nextCursor && { nextCursor })
-      };
-    } catch (error) {
-      this.log('error', 'Failed to extract tickets', error);
-      throw error;
+      // Check required fields
+      for (const field of loadingConfig.requiredFields) {
+        if (!record[field] && record[field] !== 0 && record[field] !== false) {
+          errors.push(`Record ${i}: Missing required field '${field}'`);
+        }
+      }
+
+      // Validate field rules
+      if (loadingConfig.validation) {
+        for (const [field, rule] of Object.entries(loadingConfig.validation)) {
+          const value = record[field];
+          
+          if (value !== undefined && value !== null) {
+            if (rule.pattern && typeof value === 'string') {
+              const regex = new RegExp(rule.pattern);
+              if (!regex.test(value)) {
+                errors.push(`Record ${i}: Field '${field}' does not match required pattern`);
+              }
+            }
+            
+            if (rule.enum && !rule.enum.includes(value)) {
+              errors.push(`Record ${i}: Field '${field}' must be one of: ${rule.enum.join(', ')}`);
+            }
+            
+            if (rule.minLength && typeof value === 'string' && value.length < rule.minLength) {
+              errors.push(`Record ${i}: Field '${field}' must be at least ${rule.minLength} characters`);
+            }
+            
+            if (rule.maxLength && typeof value === 'string' && value.length > rule.maxLength) {
+              errors.push(`Record ${i}: Field '${field}' must be no more than ${rule.maxLength} characters`);
+            }
+          }
+        }
+      }
     }
+
+    return { valid: errors.length === 0, errors };
   }
 
-  private async extractAssets(options: ExtractionOptions): Promise<ExtractedData> {
-    const endpoint = '/assets';
-    const params: any = {
-      per_page: options.batchSize || 100
+  // 🆕 NEW: Transform data for loading
+  public async transformForLoad(entityType: string, data: any[]): Promise<any[]> {
+    const entityDef = this.getEntityDefinition(entityType);
+    if (!entityDef) {
+      throw new Error(`Entity definition not found for ${entityType}`);
+    }
+
+    return data.map(record => {
+      const transformed: any = {};
+      const loadingFields = entityDef.loading.fields;
+
+      // Process each field according to loading configuration
+      for (const [fieldName, fieldDef] of Object.entries(loadingFields)) {
+        // Skip readonly fields for loading
+        if (fieldDef.readonly) {
+          continue;
+        }
+
+        // Use provided value or default value
+        if (record[fieldName] !== undefined) {
+          transformed[fieldName] = record[fieldName];
+        } else if (fieldDef.defaultValue !== undefined) {
+          transformed[fieldName] = fieldDef.defaultValue;
+        }
+      }
+
+      return transformed;
+    });
+  }
+
+  // 🆕 NEW: Perform actual loading operation
+  private async performLoad(
+    entityType: string, 
+    data: any[], 
+    entityDef: EntityDefinition, 
+    options?: LoadOptions
+  ): Promise<LoadResult> {
+    const result: LoadResult = {
+      success: true,
+      entityType,
+      processed: 0,
+      successful: 0,
+      failed: 0,
+      errors: [],
+      summary: { created: 0, updated: 0, skipped: 0 }
     };
 
-    if (options.startDate) {
-      params.updated_since = options.startDate;
-    }
+    const batchSize = entityDef.loading.batchSize || 50;
+    const endpoint = entityDef.loading.endpoint;
 
-    if (options.cursor) {
-      params.page = parseInt(options.cursor);
-    }
-
-    try {
-      const response = await this.httpClient.get<ConnectorNameAssetsResponse>(endpoint, { params });
-      const nextCursor = this.getNextCursor(response);
+    // Process in batches
+    for (let i = 0; i < data.length; i += batchSize) {
+      const batch = data.slice(i, i + batchSize);
       
-      return {
-        entityType: options.entityType,
-        records: response.data.assets || [],
-        totalCount: response.data.total || 0,
-        hasMore: this.hasMorePages(response),
-        ...(nextCursor && { nextCursor })
-      };
-    } catch (error) {
-      this.log('error', 'Failed to extract assets', error);
-      throw error;
+      try {
+        // Simulate loading operation (replace with actual API calls in real implementation)
+        await this.simulateLoading(entityType, batch, result);
+        
+        result.processed += batch.length;
+        
+        // Apply rate limiting if configured
+        if (entityDef.loading.rateLimit) {
+          const delay = (60 * 1000) / entityDef.loading.rateLimit;
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        
+      } catch (error: any) {
+        this.log('error', `Failed to load batch for ${entityType}`, error);
+        
+        // Mark entire batch as failed
+        for (const record of batch) {
+          result.errors.push({
+            record,
+            error: error.message || 'Batch loading failed'
+          });
+          result.failed++;
+        }
+        result.processed += batch.length;
+      }
     }
+
+    result.success = result.failed === 0;
+    this.log('info', `Loading completed for ${entityType}`, {
+      processed: result.processed,
+      successful: result.successful,
+      failed: result.failed
+    });
+
+    return result;
   }
 
-  private async extractUsers(options: ExtractionOptions): Promise<ExtractedData> {
-    const endpoint = '/requesters';
-    const params: any = {
-      per_page: options.batchSize || 100
+  // 🆕 NEW: Simulate loading (replace with real API calls)
+  private async simulateLoading(entityType: string, batch: any[], result: LoadResult): Promise<void> {
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 100 * batch.length));
+
+    // Simulate success rates based on entity type
+    const successRates = {
+      tickets: 0.95,
+      assets: 0.98,
+      users: 0.92,
+      groups: 0.99
     };
 
-    if (options.startDate) {
-      params.updated_since = options.startDate;
-    }
+    const successRate = successRates[entityType as keyof typeof successRates] || 0.95;
 
-    if (options.cursor) {
-      params.page = parseInt(options.cursor);
-    }
-
-    try {
-      const response = await this.httpClient.get<ConnectorNameUsersResponse>(endpoint, { params });
-      const nextCursor = this.getNextCursor(response);
-      
-      return {
-        entityType: options.entityType,
-        records: response.data.requesters || [],
-        totalCount: response.data.total || 0,
-        hasMore: this.hasMorePages(response),
-        ...(nextCursor && { nextCursor })
-      };
-    } catch (error) {
-      this.log('error', 'Failed to extract users', error);
-      throw error;
+    for (const record of batch) {
+      if (Math.random() < successRate) {
+        result.successful++;
+        result.summary.created++; // In real implementation, determine if created or updated
+      } else {
+        result.failed++;
+        result.errors.push({
+          record,
+          error: `Simulated ${entityType} loading failure`,
+          code: 'SIMULATION_ERROR'
+        });
+      }
     }
   }
 
-  // 6. Data transformation methods (following Freshservice pattern)
-  public transformData(entityType: string, externalData: any[]): any[] {
-    this.log('info', `Transforming ${externalData.length} ${entityType} records`);
-
-    switch (entityType) {
-      case EntityType.TICKETS:
-        return this.transformTickets(externalData as ConnectorNameTicket[]);
-      case EntityType.ASSETS:
-        return this.transformAssets(externalData as ConnectorNameAsset[]);
-      case EntityType.USERS:
-        return this.transformUsers(externalData as ConnectorNameUser[]);
-      default:
-        return externalData;
-    }
+  // 🆕 NEW: Get entity definition
+  public getEntityDefinition(entityType: string): EntityDefinition | null {
+    return CONNECTOR_ENTITY_DEFINITIONS[entityType] || null;
   }
 
-  private transformTickets(tickets: ConnectorNameTicket[]): any[] {
-    return tickets.map(ticket => ({
-      id: ticket.id,
-      external_id: ticket.id.toString(),
-      subject: ticket.subject,
-      description: ticket.description || '',
-      status: CONNECTOR_TICKET_STATUS[ticket.status as keyof typeof CONNECTOR_TICKET_STATUS] || 'Unknown',
-      priority: CONNECTOR_TICKET_PRIORITY[ticket.priority as keyof typeof CONNECTOR_TICKET_PRIORITY] || 'Unknown',
-      type: ticket.type,
-      source: CONNECTOR_TICKET_SOURCE[ticket.source as keyof typeof CONNECTOR_TICKET_SOURCE] || 'Unknown',
-      requester_id: ticket.requester_id,
-      responder_id: ticket.responder_id,
-      group_id: ticket.group_id,
-      created_at: ticket.created_at,
-      updated_at: ticket.updated_at,
-      custom_fields: ticket.custom_fields,
-      source_system: 'connector_name'
-    }));
-  }
-
-  private transformAssets(assets: ConnectorNameAsset[]): any[] {
-    return assets.map(asset => ({
-      id: asset.id,
-      external_id: asset.id.toString(),
-      display_id: asset.display_id,
-      name: asset.name,
-      asset_type_id: asset.asset_type_id,
-      impact: asset.impact,
-      usage_type: asset.usage_type,
-      user_id: asset.user_id,
-      created_at: asset.created_at,
-      updated_at: asset.updated_at,
-      source_system: 'connector_name'
-    }));
-  }
-
-  private transformUsers(users: ConnectorNameUser[]): any[] {
-    return users.map(user => ({
-      id: user.id,
-      external_id: user.id.toString(),
-      first_name: user.first_name,
-      last_name: user.last_name,
-      email: user.email,
-      active: user.active,
-      created_at: user.created_at,
-      updated_at: user.updated_at,
-      source_system: 'connector_name'
-    }));
-  }
-
-  // 7. Required abstract method implementations
-  protected getDataArrayKey(entityType: string): string {
-    const keyMap: Record<string, string> = {
-      tickets: 'tickets',
-      assets: 'assets',
-      users: 'requesters',
-      groups: 'groups'
-    };
-    return keyMap[entityType] || entityType;
-  }
-
+  // Enhanced supported entities with loading info
   public getSupportedEntities(): string[] {
-    return this.metadata.supportedEntities;
+    return Object.keys(CONNECTOR_ENTITY_DEFINITIONS);
   }
 
+  // Enhanced entity schema including loading fields
   public getEntitySchema(entityType: string): Record<string, any> {
-    return CONNECTOR_SCHEMAS[entityType as keyof typeof CONNECTOR_SCHEMAS] || {};
+    const entityDef = this.getEntityDefinition(entityType);
+    if (!entityDef) return {};
+
+    return {
+      extraction: entityDef.extraction.fields,
+      loading: entityDef.loading.fields,
+      requiredForLoading: entityDef.loading.requiredFields,
+      validation: entityDef.loading.validation || {}
+    };
+  }
+
+  // Existing methods (unchanged)
+  public async testConnection(): Promise<ConnectionTestResult> {
+    // Implementation same as before
+  }
+
+  protected getDataArrayKey(entityType: string): string {
+    // Implementation same as before
   }
 }
 ```
 
-### Step 4: Update ConnectorFactory.ts
-
-**Reference**: `backend/src/connectors/base/ConnectorFactory.ts` (lines 7-8, 21-22, 36-45)
-
-Add the new connector to the factory following the Freshservice pattern:
+### Step 5: Update Enhanced ConnectorFactory.ts
 
 ```typescript
-// Add import
-import { ConnectorNameConnector } from '../connector_name/ConnectorNameConnector';
+// Add import for entity definitions
+import { CONNECTOR_ENTITY_DEFINITIONS } from '../connector_name/ConnectorNameEntityDefinitions';
 
-// Add to createConnector switch (after FRESHSERVICE case)
+// Add to createConnector switch
 case 'CONNECTOR_NAME':
   return new ConnectorNameConnector(config);
 
-// Add to getSupportedTypes
-static getSupportedTypes(): string[] {
-  return ['FRESHSERVICE', 'CONNECTOR_NAME']; // Add new connector
-}
-
-// Add to getConnectorMetadata (following Freshservice pattern)
+// Enhanced metadata with bidirectional support
 case 'CONNECTOR_NAME':
   return {
     name: 'ConnectorName',
     type: 'CONNECTOR_NAME',
     authType: 'api_key',
-    supportedEntities: ['tickets', 'assets', 'users'],
+    supportedEntities: Object.keys(CONNECTOR_ENTITY_DEFINITIONS),
+    capabilities: ['extraction', 'loading', 'bidirectional'],
     configSchema: {
-      domain: { type: 'string', required: true, description: 'Connector domain (e.g., company.connectorname.com)' },
-      apiKey: { type: 'string', required: true, description: 'Connector API key' }
+      domain: { type: 'string', required: true, description: 'Connector domain' },
+      apiKey: { type: 'string', required: true, description: 'Connector API key' },
+      loadingEnabled: { type: 'boolean', required: false, description: 'Enable loading operations' },
+      batchSize: { type: 'number', required: false, description: 'Batch size for loading (max 100)' },
+      rateLimit: { type: 'number', required: false, description: 'Rate limit for loading (max 500/min)' }
     }
   };
 ```
 
-### Step 5: Update index.ts
+## 🔧 Enhanced Required Methods
 
-**Reference**: `backend/src/connectors/index.ts` (line 7)
+Every bidirectional connector must implement these methods:
 
-Add the export for the new connector:
+### Core Bidirectional Methods
+- `extractData()` - Extract data FROM external system (existing)
+- `loadData()` - **🆕 NEW** Load data TO external system
+- `validateForLoad()` - **🆕 NEW** Validate data before loading
+- `transformForLoad()` - **🆕 NEW** Transform data for loading operation
+- `getEntityDefinition()` - **🆕 NEW** Get entity configuration
 
-```typescript
-// Add export (following Freshservice pattern)
-export * from './connector_name/ConnectorNameConnector';
-```
+### Enhanced Utility Methods
+- `getSupportedEntities()` - Return entities supporting extraction AND loading
+- `getEntitySchema()` - Return both extraction and loading schemas
 
-## 🔧 Required Methods
-
-Every connector must implement these key methods:
-
-### Core Methods
-- `validateConfig()` - Validate connector configuration
-- `setupHttpClient()` - Configure HTTP client with authentication
-- `testConnection()` - Test API connectivity
-- `authenticate()` - Authenticate with the external system
-- `extractData()` - Main data extraction router
-- `transformData()` - Main data transformation router
-
-### Entity-Specific Methods
-- `extract{EntityType}()` - Extract specific entity type data
-- `transform{EntityType}()` - Transform specific entity type data
-
-### Utility Methods
-- `getDataArrayKey()` - Return data array key for API responses
-- `getSupportedEntities()` - Return list of supported entities
-- `getEntitySchema()` - Return validation schema for entity type
-
-## 🎯 Simple Rules
-
-### 1 Entity Type = 1 Extract Method + 1 Transform Method + 1 Interface
-
-- **Interface**: Define in `{ConnectorName}Types.ts`
-- **Extract Method**: Implement in `{ConnectorName}Connector.ts`
-- **Transform Method**: Implement in `{ConnectorName}Connector.ts`
-
-### All Entity Info Goes in 2 Files
-
-- **Types**: `{ConnectorName}Types.ts`
-- **Implementation**: `{ConnectorName}Connector.ts`
-
-### Each Entity Gets Its Own Section
-
-- Organized by entity type within each file
-- Consistent naming pattern across all connectors
-- Clear separation of concerns
-
-## 📊 Data Flow
+## 🎯 Enhanced Data Flow
 
 ```
+🔄 Bidirectional Data Flow:
+
+📥 EXTRACTION:
 1. External API → Extract Method → Raw Data
-2. Raw Data → Transform Method → Standardized Data
+2. Raw Data → Transform Method → Standardized Data  
 3. Standardized Data → Project Bridge Internal Format
+
+📤 LOADING:
+1. Project Bridge Internal Format → Transform for Load → External Format
+2. External Format → Validate for Load → Validated Data
+3. Validated Data → Load Method → External API
+4. External API → Load Result → Success/Failure Report
+
+🔄 MIGRATION:
+1. Source System → Extract → Transform → Validate → Load → Target System
 ```
 
-## 🛡️ Security Considerations
+## 🛡️ Enhanced Security & Validation
 
-- **Credential Storage**: Use encrypted configuration storage
-- **Authentication**: Implement proper authentication for each system
-- **Rate Limiting**: Respect API rate limits for external systems
-- **Error Handling**: Implement comprehensive error handling and logging
+### Loading Operation Security
+- **Credential Validation**: Verify write permissions before loading
+- **Data Validation**: Comprehensive field-level validation
+- **Rate Limiting**: Respect API rate limits for loading operations
+- **Batch Processing**: Controlled batch sizes to prevent system overload
+- **Error Recovery**: Graceful handling of partial failures
 
-## 🔍 Testing
+### Field-Level Security
+- **ReadOnly Protection**: Prevent modification of system-managed fields
+- **Required Field Validation**: Ensure all required fields are present
+- **Data Type Validation**: Enforce proper data types for all fields
+- **Business Rule Validation**: Apply business-specific validation rules
 
-Each connector should include:
+## 📊 Job Type Integration
 
-- **Connection Testing**: Verify API connectivity and authentication
-- **Data Extraction Testing**: Test all supported entity types
-- **Data Transformation Testing**: Verify data mapping accuracy
-- **Error Handling Testing**: Test failure scenarios
+### Enhanced Job Types
+- **EXTRACTION**: Extract data only (source system → internal storage)
+- **LOADING**: Load data only (internal storage → target system)  
+- **MIGRATION**: Complete bidirectional migration (source → transform → target)
 
-## 📚 Examples
+### Job Processing Flow
+```
+EXTRACTION Job:
+Source Connector → Extract → Transform → Store
 
-See existing implementations for reference:
+LOADING Job:
+Retrieve → Validate → Transform for Load → Target Connector → Load
 
-- **Freshservice**: `backend/src/connectors/freshservice/` ✅ **IMPLEMENTED**
-  - Full implementation with tickets, assets, users, and groups
-  - API key authentication with SSL/TLS configuration
-  - Comprehensive error handling and logging
-  - Working connection testing with real API calls
-  - Complete data extraction and transformation
-  - **Reference files:**
-    - `FreshserviceConnector.ts` (448 lines) - Main implementation
-    - `FreshserviceTypes.ts` (214 lines) - Types and schemas
+MIGRATION Job:
+Source Connector → Extract → Transform → Validate → Target Connector → Load
+```
 
-This architecture ensures **consistency**, **maintainability**, and **scalability** across all connector implementations in Project Bridge. 
+This enhanced bidirectional architecture provides **complete data migration capabilities** while maintaining **security**, **validation**, and **error handling** throughout the entire process. 

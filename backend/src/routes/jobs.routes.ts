@@ -333,9 +333,12 @@ export async function jobRoutes(fastify: FastifyInstance) {
       const user = getUser(request);
 
       // Get job counts by status
-      const [queued, running, completed, failed] = await Promise.all([
+      const [queued, running, extracting, dataReady, loading, completed, failed] = await Promise.all([
         prisma.job.count({ where: { tenantId: user.tenantId, status: JobStatus.QUEUED } }),
         prisma.job.count({ where: { tenantId: user.tenantId, status: JobStatus.RUNNING } }),
+        prisma.job.count({ where: { tenantId: user.tenantId, status: JobStatus.EXTRACTING } }),
+        prisma.job.count({ where: { tenantId: user.tenantId, status: JobStatus.DATA_READY } }),
+        prisma.job.count({ where: { tenantId: user.tenantId, status: JobStatus.LOADING } }),
         prisma.job.count({ where: { tenantId: user.tenantId, status: JobStatus.COMPLETED } }),
         prisma.job.count({ where: { tenantId: user.tenantId, status: JobStatus.FAILED } }),
       ]);
@@ -349,9 +352,12 @@ export async function jobRoutes(fastify: FastifyInstance) {
           jobCounts: {
             queued,
             running,
+            extracting,
+            dataReady,
+            loading,
             completed,
             failed,
-            total: queued + running + completed + failed,
+            total: queued + running + extracting + dataReady + loading + completed + failed,
           },
           queueStats,
         },

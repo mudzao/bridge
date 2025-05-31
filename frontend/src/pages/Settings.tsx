@@ -131,8 +131,8 @@ export const Settings: React.FC = () => {
         return (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium text-gray-900">Profile Information</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Profile Information</h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Update your personal information and email address.
               </p>
             </div>
@@ -140,45 +140,45 @@ export const Settings: React.FC = () => {
             <form onSubmit={handleProfileSubmit(handleProfileUpdate)} className="space-y-6">
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     First Name
                   </label>
                   <input
                     type="text"
                     {...registerProfile('firstName')}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
                   />
                   {profileErrors.firstName && (
-                    <p className="mt-1 text-sm text-red-600">{profileErrors.firstName.message}</p>
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{profileErrors.firstName.message}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Last Name
                   </label>
                   <input
                     type="text"
                     {...registerProfile('lastName')}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
                   />
                   {profileErrors.lastName && (
-                    <p className="mt-1 text-sm text-red-600">{profileErrors.lastName.message}</p>
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{profileErrors.lastName.message}</p>
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Email Address
                 </label>
                 <input
                   type="email"
                   {...registerProfile('email')}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
                 />
                 {profileErrors.email && (
-                  <p className="mt-1 text-sm text-red-600">{profileErrors.email.message}</p>
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{profileErrors.email.message}</p>
                 )}
               </div>
 
@@ -200,22 +200,22 @@ export const Settings: React.FC = () => {
         return (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium text-gray-900">Security Settings</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Security Settings</h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Manage your password and security preferences.
               </p>
             </div>
 
             <form onSubmit={handlePasswordSubmit(handlePasswordChange)} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Current Password
                 </label>
                 <div className="mt-1 relative">
                   <input
                     type={showCurrentPassword ? 'text' : 'password'}
                     {...registerPassword('currentPassword')}
-                    className="block w-full border border-gray-300 rounded-md px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
                   />
                   <button
                     type="button"
@@ -223,26 +223,26 @@ export const Settings: React.FC = () => {
                     className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   >
                     {showCurrentPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
+                      <EyeOff className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                     ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
+                      <Eye className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                     )}
                   </button>
                 </div>
                 {passwordErrors.currentPassword && (
-                  <p className="mt-1 text-sm text-red-600">{passwordErrors.currentPassword.message}</p>
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{passwordErrors.currentPassword.message}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   New Password
                 </label>
                 <div className="mt-1 relative">
                   <input
                     type={showNewPassword ? 'text' : 'password'}
                     {...registerPassword('newPassword')}
-                    className="block w-full border border-gray-300 rounded-md px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
                   />
                   <button
                     type="button"
@@ -250,26 +250,26 @@ export const Settings: React.FC = () => {
                     className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   >
                     {showNewPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
+                      <EyeOff className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                     ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
+                      <Eye className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                     )}
                   </button>
                 </div>
                 {passwordErrors.newPassword && (
-                  <p className="mt-1 text-sm text-red-600">{passwordErrors.newPassword.message}</p>
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{passwordErrors.newPassword.message}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Confirm New Password
                 </label>
                 <div className="mt-1 relative">
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     {...registerPassword('confirmPassword')}
-                    className="block w-full border border-gray-300 rounded-md px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
                   />
                   <button
                     type="button"
@@ -277,14 +277,14 @@ export const Settings: React.FC = () => {
                     className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   >
                     {showConfirmPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
+                      <EyeOff className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                     ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
+                      <Eye className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                     )}
                   </button>
                 </div>
                 {passwordErrors.confirmPassword && (
-                  <p className="mt-1 text-sm text-red-600">{passwordErrors.confirmPassword.message}</p>
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{passwordErrors.confirmPassword.message}</p>
                 )}
               </div>
 
@@ -306,8 +306,8 @@ export const Settings: React.FC = () => {
         return (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium text-gray-900">Notification Preferences</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Notification Preferences</h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Choose how you want to be notified about migration activities.
               </p>
             </div>
@@ -315,48 +315,48 @@ export const Settings: React.FC = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900">Job Completion</h4>
-                  <p className="text-sm text-gray-500">Get notified when migration jobs complete</p>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">Job Completion</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Get notified when migration jobs complete</p>
                 </div>
                 <input
                   type="checkbox"
                   defaultChecked
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700"
                 />
               </div>
 
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900">Job Failures</h4>
-                  <p className="text-sm text-gray-500">Get notified when migration jobs fail</p>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">Job Failures</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Get notified when migration jobs fail</p>
                 </div>
                 <input
                   type="checkbox"
                   defaultChecked
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700"
                 />
               </div>
 
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900">Weekly Reports</h4>
-                  <p className="text-sm text-gray-500">Receive weekly migration activity summaries</p>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">Weekly Reports</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Receive weekly migration activity summaries</p>
                 </div>
                 <input
                   type="checkbox"
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700"
                 />
               </div>
 
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900">System Maintenance</h4>
-                  <p className="text-sm text-gray-500">Get notified about scheduled maintenance</p>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">System Maintenance</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Get notified about scheduled maintenance</p>
                 </div>
                 <input
                   type="checkbox"
                   defaultChecked
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700"
                 />
               </div>
             </div>
@@ -377,26 +377,26 @@ export const Settings: React.FC = () => {
         return (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium text-gray-900">Organization Settings</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Organization Settings</h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 View and manage your organization information.
               </p>
             </div>
 
-            <div className="bg-gray-50 rounded-lg p-6">
+            <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-600">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Organization Name</label>
-                  <p className="mt-1 text-sm text-gray-900">Acme Corporation</p>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Organization Name</label>
+                  <p className="mt-1 text-sm text-gray-900 dark:text-white">Acme Corporation</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Organization ID</label>
-                  <p className="mt-1 text-sm text-gray-900 font-mono">acme-corp</p>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Organization ID</label>
+                  <p className="mt-1 text-sm text-gray-900 dark:text-white font-mono">acme-corp</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Plan</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Plan</label>
                   <div className="mt-1 flex items-center">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                       <CheckCircle className="w-3 h-3 mr-1" />
@@ -406,13 +406,13 @@ export const Settings: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Your Role</label>
-                  <p className="mt-1 text-sm text-gray-900 capitalize">{profile?.role?.toLowerCase() || 'Admin'}</p>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Your Role</label>
+                  <p className="mt-1 text-sm text-gray-900 dark:text-white capitalize">{profile?.role?.toLowerCase() || 'Admin'}</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Member Since</label>
-                  <p className="mt-1 text-sm text-gray-900">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Member Since</label>
+                  <p className="mt-1 text-sm text-gray-900 dark:text-white">
                     {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'long',
@@ -423,14 +423,14 @@ export const Settings: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="bg-yellow-50 dark:bg-yellow-900/50 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
               <div className="flex">
                 <AlertCircle className="h-5 w-5 text-yellow-400" />
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-yellow-800">
+                  <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
                     Organization Management
                   </h3>
-                  <div className="mt-2 text-sm text-yellow-700">
+                  <div className="mt-2 text-sm text-yellow-700 dark:text-yellow-300">
                     <p>
                       Organization settings can only be modified by organization owners. 
                       Contact your administrator to make changes to organization details.
@@ -452,18 +452,18 @@ export const Settings: React.FC = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-            <p className="mt-1 text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Manage your account settings and preferences
             </p>
           </div>
         </div>
         
-        <div className="bg-white shadow rounded-lg p-6">
+        <div className="bg-white dark:bg-gray-900 shadow rounded-lg p-6">
           <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-1/4"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-1/2"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-3/4"></div>
           </div>
         </div>
       </div>
@@ -475,16 +475,16 @@ export const Settings: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Manage your account settings and preferences
           </p>
         </div>
       </div>
 
       {/* Settings Content */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="divide-y divide-gray-200 lg:grid lg:grid-cols-12 lg:divide-y-0 lg:divide-x">
+      <div className="bg-white dark:bg-gray-900 shadow rounded-lg">
+        <div className="divide-y divide-gray-200 dark:divide-gray-600 lg:grid lg:grid-cols-12 lg:divide-y-0 lg:divide-x">
           {/* Sidebar */}
           <aside className="py-6 lg:col-span-3">
             <nav className="space-y-1">
@@ -496,13 +496,13 @@ export const Settings: React.FC = () => {
                     onClick={() => setActiveTab(tab.id as any)}
                     className={`${
                       activeTab === tab.id
-                        ? 'bg-blue-50 border-blue-500 text-blue-700'
-                        : 'border-transparent text-gray-900 hover:bg-gray-50 hover:text-gray-900'
+                        ? 'bg-blue-50 dark:bg-blue-900/50 border-blue-500 text-blue-700 dark:text-blue-300'
+                        : 'border-transparent text-gray-900 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-gray-900 dark:hover:text-gray-100'
                     } group border-l-4 px-3 py-2 flex items-center text-sm font-medium w-full text-left`}
                   >
                     <Icon
                       className={`${
-                        activeTab === tab.id ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
+                        activeTab === tab.id ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-400'
                       } flex-shrink-0 -ml-1 mr-3 h-5 w-5`}
                     />
                     <span className="truncate">{tab.name}</span>

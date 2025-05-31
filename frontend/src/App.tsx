@@ -2,6 +2,9 @@ import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
+// Theme
+import { ThemeProvider } from '@/contexts/ThemeContext';
+
 // Components
 import { Layout } from '@/components/layout/Layout';
 import { LoginForm } from '@/components/auth/LoginForm';
@@ -25,46 +28,48 @@ function App() {
   }, [checkAuth]);
 
   return (
-    <div className="App">
-      <Routes>
-        {/* Public Routes */}
-        <Route 
-          path="/login" 
-          element={
-            isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginForm />
-          } 
-        />
+    <ThemeProvider>
+      <div className="App">
+        <Routes>
+          {/* Public Routes */}
+          <Route 
+            path="/login" 
+            element={
+              isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginForm />
+            } 
+          />
 
-        {/* Protected Routes */}
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
-          }
-        >
-          {/* Dashboard */}
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          
-          {/* Jobs */}
-          <Route path="jobs" element={<Jobs />} />
-          
-          {/* Connectors */}
-          <Route path="connectors" element={<Connectors />} />
-          
-          {/* Settings */}
-          <Route path="settings" element={<Settings />} />
-        </Route>
+          {/* Protected Routes */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            {/* Dashboard */}
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            
+            {/* Jobs */}
+            <Route path="jobs" element={<Jobs />} />
+            
+            {/* Connectors */}
+            <Route path="connectors" element={<Connectors />} />
+            
+            {/* Settings */}
+            <Route path="settings" element={<Settings />} />
+          </Route>
 
-        {/* Catch all route */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-      
-      {/* React Query Devtools */}
-      <ReactQueryDevtools initialIsOpen={false} />
-    </div>
+          {/* Catch all route */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+        
+        {/* React Query Devtools */}
+        <ReactQueryDevtools initialIsOpen={false} />
+      </div>
+    </ThemeProvider>
   );
 }
 
