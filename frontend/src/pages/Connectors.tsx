@@ -13,7 +13,9 @@ import {
   Edit,
   TestTube,
   X,
-  Save
+  Save,
+  TrendingUp,
+  Search
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
@@ -56,6 +58,8 @@ const zendeskSchema = z.object({
 export const Connectors: React.FC = () => {
   const [testingConnector, setTestingConnector] = useState<string | null>(null);
   const [editingConnector, setEditingConnector] = useState<Connector | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const queryClient = useQueryClient();
   const { showSuccess, showError } = useToast();
 
@@ -137,24 +141,40 @@ export const Connectors: React.FC = () => {
     }
   };
 
+  const getConnectorTypeName = (type: string) => {
+    switch (type) {
+      case 'FRESHSERVICE':
+        return 'FreshService';
+      case 'SERVICENOW':
+        return 'ServiceNow';
+      case 'ZENDESK':
+        return 'Zendesk';
+      default:
+        return type;
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       ACTIVE: { 
-        bg: 'bg-green-100', 
-        text: 'text-green-800', 
+        bg: 'bg-gray-100 dark:bg-gray-800', 
+        text: 'text-gray-900 dark:text-white', 
         icon: CheckCircle,
+        iconColor: 'text-green-600 dark:text-green-400',
         label: 'Active' 
       },
       DISABLED: { 
-        bg: 'bg-gray-100', 
-        text: 'text-gray-800', 
+        bg: 'bg-gray-100 dark:bg-gray-800', 
+        text: 'text-gray-500 dark:text-gray-400', 
         icon: XCircle,
+        iconColor: 'text-red-600 dark:text-red-400',
         label: 'Disabled' 
       },
       ERROR: { 
-        bg: 'bg-red-100', 
-        text: 'text-red-800', 
+        bg: 'bg-gray-100 dark:bg-gray-800', 
+        text: 'text-red-600 dark:text-red-400', 
         icon: AlertCircle,
+        iconColor: 'text-red-600 dark:text-red-400',
         label: 'Error' 
       },
     };
@@ -163,8 +183,8 @@ export const Connectors: React.FC = () => {
     const Icon = config.icon;
 
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
-        <Icon className="w-3 h-3 mr-1" />
+      <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+        <Icon className={`w-3 h-3 mr-2 ${config.iconColor}`} />
         {config.label}
       </span>
     );
@@ -251,6 +271,31 @@ export const Connectors: React.FC = () => {
     }
   };
 
+  const filteredConnectors = connectors.filter((connector: Connector) => {
+    const matchesStatus = statusFilter === 'all' || connector.status === statusFilter;
+    const matchesSearch = searchTerm === '' || 
+      connector.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      connector.connectorType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (connector.config.domain && connector.config.domain.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (connector.config.instance && connector.config.instance.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (connector.config.subdomain && connector.config.subdomain.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    return matchesStatus && matchesSearch;
+  });
+
+  const getConfigPreview = (connector: Connector) => {
+    if (connector.connectorType === 'FRESHSERVICE' && connector.config.domain) {
+      return connector.config.domain;
+    }
+    if (connector.connectorType === 'SERVICENOW' && connector.config.instance) {
+      return connector.config.instance;
+    }
+    if (connector.connectorType === 'ZENDESK' && connector.config.subdomain) {
+      return connector.config.subdomain;
+    }
+    return 'Not configured';
+  };
+
   const renderEditForm = () => {
     if (!editingConnector) return null;
 
@@ -277,7 +322,7 @@ export const Connectors: React.FC = () => {
               <input
                 {...register('name')}
                 type="text"
-                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
               />
               {errors.name && (
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.name.message as string}</p>
@@ -288,7 +333,7 @@ export const Connectors: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
               <select
                 {...register('status')}
-                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
               >
                 <option value="ACTIVE">Active</option>
                 <option value="DISABLED">Disabled</option>
@@ -308,7 +353,7 @@ export const Connectors: React.FC = () => {
                     {...register('domain')}
                     type="text"
                     placeholder="your-domain.freshservice.com"
-                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
                   />
                   {errors.domain && (
                     <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.domain.message as string}</p>
@@ -319,7 +364,7 @@ export const Connectors: React.FC = () => {
                   <input
                     {...register('apiKey')}
                     type="password"
-                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
                   />
                   {errors.apiKey && (
                     <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.apiKey.message as string}</p>
@@ -336,7 +381,7 @@ export const Connectors: React.FC = () => {
                     {...register('instance')}
                     type="text"
                     placeholder="your-instance.service-now.com"
-                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
                   />
                   {errors.instance && (
                     <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.instance.message as string}</p>
@@ -347,7 +392,7 @@ export const Connectors: React.FC = () => {
                   <input
                     {...register('username')}
                     type="text"
-                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
                   />
                   {errors.username && (
                     <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.username.message as string}</p>
@@ -358,7 +403,7 @@ export const Connectors: React.FC = () => {
                   <input
                     {...register('password')}
                     type="password"
-                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
                   />
                   {errors.password && (
                     <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.password.message as string}</p>
@@ -375,7 +420,7 @@ export const Connectors: React.FC = () => {
                     {...register('subdomain')}
                     type="text"
                     placeholder="your-subdomain.zendesk.com"
-                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
                   />
                   {errors.subdomain && (
                     <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.subdomain.message as string}</p>
@@ -386,7 +431,7 @@ export const Connectors: React.FC = () => {
                   <input
                     {...register('email')}
                     type="email"
-                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
                   />
                   {errors.email && (
                     <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email.message as string}</p>
@@ -397,7 +442,7 @@ export const Connectors: React.FC = () => {
                   <input
                     {...register('apiToken')}
                     type="password"
-                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
                   />
                   {errors.apiToken && (
                     <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.apiToken.message as string}</p>
@@ -414,14 +459,14 @@ export const Connectors: React.FC = () => {
                   setEditingConnector(null);
                   reset();
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting || updateConnectorMutation.isPending}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
               >
                 <Save className="w-4 h-4 mr-2" />
                 {isSubmitting || updateConnectorMutation.isPending ? 'Saving...' : 'Save Changes'}
@@ -497,112 +542,256 @@ export const Connectors: React.FC = () => {
             Manage connections to your helpdesk systems
           </p>
         </div>
-        <button
-          onClick={() => alert('Add connector functionality coming soon!')}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Connector
-        </button>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-white dark:bg-gray-900 shadow rounded-lg">
+        <div className="px-4 py-5 sm:p-6">
+          <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">Quick Actions</h3>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <button
+              onClick={() => alert('Add connector functionality coming soon!')}
+              className="relative group bg-white dark:bg-gray-800 p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500 rounded-lg border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
+            >
+              <div>
+                <Plus className="h-6 w-6 text-gray-400 mx-auto" />
+              </div>
+              <div className="mt-4">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                  Add New Connector
+                </h3>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  Configure and connect to a new helpdesk system.
+                </p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => window.location.href = '/jobs'}
+              className="relative group bg-white dark:bg-gray-800 p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500 rounded-lg border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
+            >
+              <div>
+                <TrendingUp className="h-6 w-6 text-gray-400 mx-auto" />
+              </div>
+              <div className="mt-4">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                  Start New Migration
+                </h3>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  Create a new data migration job between your connected systems.
+                </p>
+              </div>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Connectors List */}
-      <div className="space-y-4">
-        {connectors.length === 0 ? (
-          <div className="bg-white dark:bg-gray-900 shadow rounded-lg p-6 text-center">
-            <Database className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No connectors</h3>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Get started by adding your first connector.
-            </p>
-            <div className="mt-6">
-              <button
-                onClick={() => alert('Add connector functionality coming soon!')}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+      <div className="bg-white dark:bg-gray-900 shadow rounded-lg">
+        <div className="px-3 py-4">
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search connectors..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-800 dark:text-white"
+                />
+              </div>
+            </div>
+            <div className="sm:w-48">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-800 dark:text-white"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Connector
-              </button>
+                <option value="all">All Statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="DISABLED">Disabled</option>
+                <option value="ERROR">Error</option>
+              </select>
             </div>
           </div>
-        ) : (
-          <>
-            {connectors.map((connector: Connector) => (
-              <div
-                key={connector.id}
-                className="bg-white dark:bg-gray-900 shadow rounded-lg p-6"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex-shrink-0">
-                      {getConnectorIcon(connector.connectorType)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2">
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white truncate">
-                          {connector.name}
-                        </h3>
-                        {getStatusBadge(connector.status)}
-                      </div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {connector.connectorType} • Created {formatDate(connector.createdAt)}
-                      </p>
-                      {connector.updatedAt !== connector.createdAt && (
-                        <p className="text-xs text-gray-400 dark:text-gray-500">
-                          Last updated {formatDate(connector.updatedAt)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleTestConnection(connector.id)}
-                      disabled={testingConnector === connector.id}
-                      className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                    >
-                      <TestTube className="w-3 h-3 mr-1" />
-                      {testingConnector === connector.id ? 'Testing...' : 'Test'}
-                    </button>
-                    
-                    <button
-                      onClick={() => handleEditConnector(connector)}
-                      className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      <Edit className="w-3 h-3 mr-1" />
-                      Edit
-                    </button>
-                    
-                    <button
-                      onClick={() => handleDeleteConnector(connector.id, connector.name)}
-                      disabled={deleteConnectorMutation.isPending}
-                      className="inline-flex items-center px-3 py-1.5 border border-red-300 dark:border-red-600 text-xs font-medium rounded text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
-                    >
-                      <Trash2 className="w-3 h-3 mr-1" />
-                      Delete
-                    </button>
-                  </div>
+
+          {filteredConnectors.length === 0 ? (
+            <div className="text-center py-6">
+              <Database className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+                {connectors.length === 0 ? 'No connectors yet' : 'No connectors match your search'}
+              </h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {connectors.length === 0 
+                  ? 'Get started by adding your first connector.' 
+                  : 'Try adjusting your search or filter criteria.'
+                }
+              </p>
+              {connectors.length === 0 && (
+                <div className="mt-6">
+                  <button
+                    onClick={() => alert('Add connector functionality coming soon!')}
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Connector
+                  </button>
                 </div>
-                
-                {/* Configuration Preview */}
-                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-600">
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    <span className="font-medium">Configuration:</span>
-                    {connector.connectorType === 'FRESHSERVICE' && connector.config.domain && (
-                      <span className="ml-2">Domain: {connector.config.domain}</span>
-                    )}
-                    {connector.connectorType === 'SERVICENOW' && connector.config.instance && (
-                      <span className="ml-2">Instance: {connector.config.instance}</span>
-                    )}
-                    {connector.connectorType === 'ZENDESK' && connector.config.subdomain && (
-                      <span className="ml-2">Subdomain: {connector.config.subdomain}</span>
-                    )}
-                  </div>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Table for desktop */}
+              <div className="hidden md:block">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                    <thead>
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Connector
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Type
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Domain
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Created
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-600">
+                      {filteredConnectors.map((connector: Connector) => (
+                        <tr key={connector.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div>
+                                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {connector.name}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900 dark:text-white">
+                              {getConnectorTypeName(connector.connectorType)}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {getStatusBadge(connector.status)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900 dark:text-white">
+                              {getConfigPreview(connector)}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {formatDate(connector.createdAt)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex justify-end space-x-2">
+                              <button
+                                onClick={() => handleTestConnection(connector.id)}
+                                disabled={testingConnector === connector.id}
+                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+                              >
+                                <TestTube className="w-3 h-3 mr-1" />
+                                {testingConnector === connector.id ? 'Testing...' : 'Test'}
+                              </button>
+                              
+                              <button
+                                onClick={() => handleEditConnector(connector)}
+                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                              >
+                                <Edit className="w-3 h-3 mr-1" />
+                                Edit
+                              </button>
+                              
+                              <button
+                                onClick={() => handleDeleteConnector(connector.id, connector.name)}
+                                disabled={deleteConnectorMutation.isPending}
+                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-lg text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+                              >
+                                <Trash2 className="w-3 h-3 mr-1" />
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            ))}
-          </>
-        )}
+
+              {/* Cards for mobile */}
+              <div className="md:hidden space-y-4">
+                {filteredConnectors.map((connector: Connector) => (
+                  <div
+                    key={connector.id}
+                    className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:border-gray-300 dark:hover:border-gray-500 transition-colors dark:bg-gray-800"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2">
+                            <h3 className="text-lg font-medium text-gray-900 dark:text-white truncate">
+                              {connector.name}
+                            </h3>
+                            {getStatusBadge(connector.status)}
+                          </div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {getConnectorTypeName(connector.connectorType)} • {getConfigPreview(connector)}
+                          </p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500">
+                            Created {formatDate(connector.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleTestConnection(connector.id)}
+                          disabled={testingConnector === connector.id}
+                          className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+                        >
+                          <TestTube className="w-3 h-3 mr-1" />
+                          {testingConnector === connector.id ? 'Testing...' : 'Test'}
+                        </button>
+                        
+                        <button
+                          onClick={() => handleEditConnector(connector)}
+                          className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                        >
+                          <Edit className="w-3 h-3 mr-1" />
+                          Edit
+                        </button>
+                        
+                        <button
+                          onClick={() => handleDeleteConnector(connector.id, connector.name)}
+                          disabled={deleteConnectorMutation.isPending}
+                          className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-lg text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+                        >
+                          <Trash2 className="w-3 h-3 mr-1" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Edit Modal */}

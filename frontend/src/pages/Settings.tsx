@@ -186,7 +186,7 @@ export const Settings: React.FC = () => {
                 <button
                   type="submit"
                   disabled={profileSubmitting || updateProfileMutation.isPending}
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
                 >
                   <Save className="w-4 h-4 mr-2" />
                   {profileSubmitting || updateProfileMutation.isPending ? 'Saving...' : 'Save Changes'}
@@ -292,7 +292,7 @@ export const Settings: React.FC = () => {
                 <button
                   type="submit"
                   disabled={passwordSubmitting || changePasswordMutation.isPending}
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
                 >
                   <Key className="w-4 h-4 mr-2" />
                   {passwordSubmitting || changePasswordMutation.isPending ? 'Changing...' : 'Change Password'}
@@ -364,7 +364,7 @@ export const Settings: React.FC = () => {
             <div className="flex justify-end">
               <button
                 onClick={() => alert('Notification preferences saved!')}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
               >
                 <Save className="w-4 h-4 mr-2" />
                 Save Preferences

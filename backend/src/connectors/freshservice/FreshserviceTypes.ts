@@ -30,6 +30,35 @@ export interface FreshserviceTicket {
   custom_fields: Record<string, any>;
   tags: string[];
   attachments: FreshserviceAttachment[];
+  
+  // Additional fields available from detail API
+  cc_emails?: string[];
+  fwd_emails?: string[];
+  reply_cc_emails?: string[];
+  to_emails?: string[];
+  sla_policy_id?: number;
+  is_escalated?: boolean;
+  urgency?: number;
+  impact?: number;
+  deleted?: boolean;
+  resolution_notes?: string;
+  resolution_notes_html?: string;
+  workspace_id?: number;
+  created_within_business_hours?: boolean;
+  approval_status?: number;
+  approval_status_name?: string;
+  
+  // Fields populated with include parameters
+  conversations?: FreshserviceConversation[];  // Available with include=conversations
+  requester?: FreshserviceUser;                // Available with include=requester
+  requested_for?: FreshserviceUser;            // Available with include=requested_for
+  stats?: FreshserviceTicketStats;             // Available with include=stats
+  problem?: any;                               // Available with include=problem
+  assets?: FreshserviceAsset[];               // Available with include=assets
+  changes?: any[];                            // Available with include=changes
+  related_tickets?: any;                      // Available with include=related_tickets
+  onboarding_context?: any;                   // Available with include=onboarding_context
+  offboarding_context?: any;                  // Available with include=offboarding_context
 }
 
 export interface FreshserviceAsset {
@@ -118,6 +147,34 @@ export interface FreshserviceAttachment {
   attachment_url: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface FreshserviceConversation {
+  id: number;
+  user_id: number;
+  to_emails?: string[];
+  from_email?: string;
+  cc_emails?: string[];
+  bcc_emails?: string[];
+  body: string;
+  body_text: string;
+  incoming: boolean;
+  private: boolean;
+  source: number;
+  created_at: string;
+  updated_at: string;
+  attachments?: FreshserviceAttachment[];
+}
+
+export interface FreshserviceTicketStats {
+  agent_responded_at?: string;
+  requester_responded_at?: string;
+  first_responded_at?: string;
+  status_updated_at?: string;
+  reopened_at?: string;
+  resolved_at?: string;
+  closed_at?: string;
+  pending_since?: string;
 }
 
 export interface FreshservicePaginationInfo {
@@ -225,11 +282,13 @@ export const FRESHSERVICE_ENTITY_DEFINITIONS: Record<EntityType, EntityDefinitio
     extraction: {
       endpoint: '/api/v2/tickets',
       method: 'GET',
+      detailEndpoint: '/api/v2/tickets/{id}',
+      detailRequired: true,
       fields: {
         id: { type: 'number', required: true, readOnly: true },
         subject: { type: 'string', required: true },
-        description: { type: 'string', required: false },
-        description_text: { type: 'string', required: false, readOnly: true },
+        description: { type: 'string', required: false },        // ⚠️ Only available via detail API
+        description_text: { type: 'string', required: false, readOnly: true },  // ⚠️ Only available via detail API
         status: { type: 'number', required: true },
         priority: { type: 'number', required: true },
         type: { type: 'string', required: false },
@@ -243,8 +302,12 @@ export const FRESHSERVICE_ENTITY_DEFINITIONS: Record<EntityType, EntityDefinitio
         created_at: { type: 'date', required: true, readOnly: true },
         updated_at: { type: 'date', required: true, readOnly: true },
         due_by: { type: 'date', required: false },
-        custom_fields: { type: 'object', required: false },
-        tags: { type: 'array', required: false }
+        custom_fields: { type: 'object', required: false },     // ⚠️ Complete data only via detail API
+        tags: { type: 'array', required: false },               // ⚠️ Only available via detail API with include=tags
+        attachments: { type: 'array', required: false },        // ⚠️ Only available via detail API
+        conversations: { type: 'array', required: false },      // ⚠️ Only available via detail API with include=conversations
+        resolution_notes: { type: 'string', required: false },  // ⚠️ Only available via detail API
+        resolution_notes_html: { type: 'string', required: false } // ⚠️ Only available via detail API
       },
       pagination: {
         type: 'page',

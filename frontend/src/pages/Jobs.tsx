@@ -102,7 +102,15 @@ export const Jobs: React.FC = () => {
 
   const jobs = jobsResponse?.data || [];
   const connectors = connectorsResponse?.data || [];
-  const stats = statsResponse?.data || {};
+  const jobCounts = statsResponse?.data?.jobCounts || {};
+  
+  // Calculate proper aggregated stats
+  const stats = {
+    total: jobCounts.total || 0,
+    running: (jobCounts.running || 0) + (jobCounts.extracting || 0) + (jobCounts.loading || 0),
+    completed: (jobCounts.completed || 0) + (jobCounts.dataReady || 0),
+    failed: jobCounts.failed || 0,
+  };
 
   // Form setup
   const {
@@ -166,20 +174,78 @@ export const Jobs: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      QUEUED: { bg: 'bg-yellow-600', text: 'text-white', label: 'Queued' },
-      RUNNING: { bg: 'bg-blue-600', text: 'text-white', label: 'Running' },
-      EXTRACTING: { bg: 'bg-blue-600', text: 'text-white', label: 'Extracting' },
-      DATA_READY: { bg: 'bg-green-600', text: 'text-white', label: 'Data Ready' },
-      LOADING: { bg: 'bg-blue-600', text: 'text-white', label: 'Loading' },
-      COMPLETED: { bg: 'bg-green-600', text: 'text-white', label: 'Completed' },
-      FAILED: { bg: 'bg-red-600', text: 'text-white', label: 'Failed' },
-      CANCELLED: { bg: 'bg-gray-600', text: 'text-white', label: 'Cancelled' },
+      QUEUED: { 
+        bg: 'bg-gray-100 dark:bg-gray-800', 
+        text: 'text-gray-600 dark:text-gray-300', 
+        icon: Clock,
+        iconColor: 'text-gray-500 dark:text-gray-400',
+        label: 'Queued',
+        animate: false
+      },
+      RUNNING: { 
+        bg: 'bg-gray-100 dark:bg-gray-800', 
+        text: 'text-gray-900 dark:text-white', 
+        icon: RefreshCw,
+        iconColor: 'text-blue-600 dark:text-blue-400',
+        label: 'In Process',
+        animate: true
+      },
+      EXTRACTING: { 
+        bg: 'bg-gray-100 dark:bg-gray-800', 
+        text: 'text-gray-900 dark:text-white', 
+        icon: RefreshCw,
+        iconColor: 'text-blue-600 dark:text-blue-400',
+        label: 'In Process',
+        animate: true
+      },
+      DATA_READY: { 
+        bg: 'bg-gray-100 dark:bg-gray-800', 
+        text: 'text-gray-900 dark:text-white', 
+        icon: CheckCircle,
+        iconColor: 'text-green-600 dark:text-green-400',
+        label: 'Done',
+        animate: false
+      },
+      LOADING: { 
+        bg: 'bg-gray-100 dark:bg-gray-800', 
+        text: 'text-gray-900 dark:text-white', 
+        icon: RefreshCw,
+        iconColor: 'text-blue-600 dark:text-blue-400',
+        label: 'In Process',
+        animate: true
+      },
+      COMPLETED: { 
+        bg: 'bg-gray-100 dark:bg-gray-800', 
+        text: 'text-gray-900 dark:text-white', 
+        icon: CheckCircle,
+        iconColor: 'text-green-600 dark:text-green-400',
+        label: 'Done',
+        animate: false
+      },
+      FAILED: { 
+        bg: 'bg-gray-100 dark:bg-gray-800', 
+        text: 'text-red-600 dark:text-red-400', 
+        icon: XCircle,
+        iconColor: 'text-red-600 dark:text-red-400',
+        label: 'Failed',
+        animate: false
+      },
+      CANCELLED: { 
+        bg: 'bg-gray-100 dark:bg-gray-800', 
+        text: 'text-gray-500 dark:text-gray-400', 
+        icon: Pause,
+        iconColor: 'text-gray-500 dark:text-gray-400',
+        label: 'Cancelled',
+        animate: false
+      },
     };
 
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.QUEUED;
+    const Icon = config.icon;
 
     return (
-      <span className={`inline-flex items-center justify-center px-3 py-1.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+      <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+        <Icon className={`w-3 h-3 mr-2 ${config.iconColor} ${config.animate ? 'animate-spin' : ''}`} />
         {config.label}
       </span>
     );
@@ -271,7 +337,7 @@ export const Jobs: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Job Type</label>
               <select
                 {...register('jobType')}
-                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
               >
                 <option value="EXTRACTION">Data Extraction (Extract & Transform Only)</option>
                 <option value="MIGRATION">Full Migration (Extract, Transform & Load)</option>
@@ -291,7 +357,7 @@ export const Jobs: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Source Connector</label>
               <select
                 {...register('sourceConnectorId')}
-                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
               >
                 <option value="">Select source connector...</option>
                 {connectors.map((connector: Connector) => (
@@ -311,7 +377,7 @@ export const Jobs: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Destination Connector</label>
                 <select
                   {...register('destinationConnectorId')}
-                  className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
                 >
                   <option value="">Select destination connector...</option>
                   {connectors
@@ -340,7 +406,7 @@ export const Jobs: React.FC = () => {
                       type="checkbox"
                       value={entity}
                       {...register('entities')}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700"
+                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700"
                     />
                     <span className="ml-2 text-sm text-gray-700 dark:text-gray-300 capitalize">{entity}</span>
                   </label>
@@ -360,7 +426,7 @@ export const Jobs: React.FC = () => {
                   {...register('config.batchSize', { valueAsNumber: true })}
                   min="1"
                   max="1000"
-                  className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
                 />
               </div>
               <div>
@@ -368,7 +434,7 @@ export const Jobs: React.FC = () => {
                 <input
                   type="date"
                   {...register('config.startDate')}
-                  className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
                 />
               </div>
             </div>
@@ -381,14 +447,14 @@ export const Jobs: React.FC = () => {
                   setShowCreateModal(false);
                   reset();
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting || createJobMutation.isPending}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
               >
                 <Play className="w-4 h-4 mr-2" />
                 {isSubmitting || createJobMutation.isPending ? 'Creating...' : `Create ${jobType === 'MIGRATION' ? 'Migration' : 'Extraction'}`}
@@ -466,7 +532,7 @@ export const Jobs: React.FC = () => {
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
         >
           <Plus className="w-4 h-4 mr-2" />
           Create Job
@@ -518,44 +584,42 @@ export const Jobs: React.FC = () => {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="bg-white dark:bg-gray-900 shadow rounded-lg p-4">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search jobs..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
-              />
+      {/* Jobs List with integrated filters */}
+      <div className="bg-white dark:bg-gray-900 shadow rounded-lg">
+        <div className="px-3 py-4">
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search jobs..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-800 dark:text-white"
+                />
+              </div>
+            </div>
+            <div className="sm:w-48">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-800 dark:text-white"
+              >
+                <option value="all">All Statuses</option>
+                <option value="QUEUED">Queued</option>
+                <option value="RUNNING">Running</option>
+                <option value="EXTRACTING">Extracting</option>
+                <option value="DATA_READY">Data Ready</option>
+                <option value="LOADING">Loading</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="FAILED">Failed</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
             </div>
           </div>
-          <div className="sm:w-48">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
-            >
-              <option value="all">All Statuses</option>
-              <option value="QUEUED">Queued</option>
-              <option value="RUNNING">Running</option>
-              <option value="EXTRACTING">Extracting</option>
-              <option value="DATA_READY">Data Ready</option>
-              <option value="LOADING">Loading</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="FAILED">Failed</option>
-              <option value="CANCELLED">Cancelled</option>
-            </select>
-          </div>
-        </div>
-      </div>
 
-      {/* Jobs List */}
-      <div className="bg-white dark:bg-gray-900 shadow rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
           {filteredJobs.length === 0 ? (
             <div className="text-center py-6">
               <Play className="mx-auto h-12 w-12 text-gray-400" />
@@ -566,7 +630,7 @@ export const Jobs: React.FC = () => {
               <div className="mt-6">
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Create Job
@@ -579,7 +643,7 @@ export const Jobs: React.FC = () => {
               <div className="hidden md:block">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
-                    <thead className="bg-gray-50 dark:bg-gray-800">
+                    <thead>
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Job
@@ -632,7 +696,7 @@ export const Jobs: React.FC = () => {
                                 </div>
                                 <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                                   <div 
-                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                    className="bg-primary-600 h-2 rounded-full transition-all duration-300"
                                     style={{ width: `${job.progress.percentage}%` }}
                                   ></div>
                                 </div>
@@ -653,7 +717,7 @@ export const Jobs: React.FC = () => {
                             <div className="flex justify-end space-x-2">
                               <button
                                 onClick={() => setSelectedJob(job)}
-                                className="inline-flex items-center px-2 py-1 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                               >
                                 <Eye className="w-3 h-3 mr-1" />
                                 Details
@@ -665,7 +729,7 @@ export const Jobs: React.FC = () => {
                                     setValidationJobId(job.id);
                                     setShowValidationModal(true);
                                   }}
-                                  className="inline-flex items-center px-2 py-1 border border-green-300 dark:border-green-600 text-xs font-medium rounded text-green-700 dark:text-green-400 bg-white dark:bg-gray-700 hover:bg-green-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-lg text-green-700 dark:text-green-400 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                                 >
                                   <Download className="w-3 h-3 mr-1" />
                                   CSV
@@ -676,7 +740,7 @@ export const Jobs: React.FC = () => {
                                 <button
                                   onClick={() => handleCancelJob(job.id)}
                                   disabled={cancelJobMutation.isPending}
-                                  className="inline-flex items-center px-2 py-1 border border-red-300 dark:border-red-600 text-xs font-medium rounded text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                                  className="inline-flex items-center px-3 py-1.5 border border-red-300 dark:border-red-600 text-xs font-medium rounded-lg text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
                                 >
                                   <Pause className="w-3 h-3 mr-1" />
                                   Cancel
@@ -728,7 +792,7 @@ export const Jobs: React.FC = () => {
                               {job.progress.percentage !== undefined && (
                                 <div className="mt-1 w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                                   <div 
-                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                    className="bg-primary-600 h-2 rounded-full transition-all duration-300"
                                     style={{ width: `${job.progress.percentage}%` }}
                                   ></div>
                                 </div>
@@ -741,7 +805,7 @@ export const Jobs: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => setSelectedJob(job)}
-                          className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                          className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                         >
                           <Eye className="w-3 h-3 mr-1" />
                           Details
@@ -753,7 +817,7 @@ export const Jobs: React.FC = () => {
                               setValidationJobId(job.id);
                               setShowValidationModal(true);
                             }}
-                            className="inline-flex items-center px-3 py-1.5 border border-green-300 dark:border-green-600 text-xs font-medium rounded text-green-700 dark:text-green-400 bg-white dark:bg-gray-700 hover:bg-green-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                            className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-lg text-green-700 dark:text-green-400 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                           >
                             <Download className="w-3 h-3 mr-1" />
                             Download CSV
@@ -764,7 +828,7 @@ export const Jobs: React.FC = () => {
                           <button
                             onClick={() => handleCancelJob(job.id)}
                             disabled={cancelJobMutation.isPending}
-                            className="inline-flex items-center px-3 py-1.5 border border-red-300 dark:border-red-600 text-xs font-medium rounded text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                            className="inline-flex items-center px-3 py-1.5 border border-red-300 dark:border-red-600 text-xs font-medium rounded-lg text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
                           >
                             <Pause className="w-3 h-3 mr-1" />
                             Cancel
@@ -853,7 +917,7 @@ export const Jobs: React.FC = () => {
             <div className="mt-6 flex justify-end">
               <button
                 onClick={() => setSelectedJob(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
               >
                 Close
               </button>

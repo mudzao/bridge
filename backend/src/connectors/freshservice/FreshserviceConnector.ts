@@ -181,12 +181,32 @@ export class FreshserviceConnector extends BaseConnector {
     }
 
     try {
+      // Step 1: Get ticket list with basic info
+      this.log('info', 'Extracting ticket list from Freshservice');
       const response = await this.httpClient.get<FreshserviceTicketsResponse>(endpoint, { params });
+      const ticketList = response.data.tickets || [];
       const nextCursor = this.getNextCursor(response);
       
+      // Step 2: Determine if we need detailed information
+      const needsDetailExtraction = this.shouldExtractTicketDetails(options);
+      
+      if (needsDetailExtraction && ticketList.length > 0) {
+        this.log('info', `Fetching detailed information for ${ticketList.length} tickets`);
+        const detailedTickets = await this.fetchTicketDetails(ticketList, options);
+        
+        return {
+          entityType: options.entityType,
+          records: detailedTickets,
+          totalCount: response.data.total || 0,
+          hasMore: this.hasMorePages(response),
+          ...(nextCursor && { nextCursor })
+        };
+      }
+      
+      // Return list data only (basic extraction)
       return {
         entityType: options.entityType,
-        records: response.data.tickets || [],
+        records: ticketList,
         totalCount: response.data.total || 0,
         hasMore: this.hasMorePages(response),
         ...(nextCursor && { nextCursor })
@@ -195,6 +215,90 @@ export class FreshserviceConnector extends BaseConnector {
       this.log('error', 'Failed to extract tickets', error);
       throw error;
     }
+  }
+
+  /**
+   * Determine if we should extract detailed ticket information
+   */
+  private shouldExtractTicketDetails(options: ExtractionOptions): boolean {
+    // Extract details if explicitly requested
+    if (options.includeDetails !== undefined) {
+      return options.includeDetails;
+    }
+    
+    // Default to extracting details for comprehensive data migration
+    // This ensures we get descriptions, tags, attachments, and complete custom fields
+    return true;
+  }
+
+  /**
+   * Fetch detailed information for a list of tickets
+   */
+  private async fetchTicketDetails(ticketList: any[], options: ExtractionOptions): Promise<any[]> {
+    const detailedTickets: any[] = [];
+    const batchSize = Math.min(options.detailBatchSize || 10, 20); // Max 20 concurrent requests
+    const includeParams = this.getTicketDetailIncludes(options);
+    
+    // Process tickets in batches to avoid overwhelming the API
+    for (let i = 0; i < ticketList.length; i += batchSize) {
+      const batch = ticketList.slice(i, i + batchSize);
+      
+      this.log('info', `Fetching ticket details batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(ticketList.length/batchSize)} (${batch.length} tickets)`);
+      
+      const detailPromises = batch.map(async (ticket) => {
+        try {
+          const detailEndpoint = `/tickets/${ticket.id}${includeParams}`;
+          const detailResponse = await this.httpClient.get(detailEndpoint);
+          
+          // Merge list data with detailed data (detail data takes precedence)
+          return {
+            ...ticket,
+            ...detailResponse.data.ticket,
+            _extraction_source: 'detail_api'
+          };
+        } catch (error: any) {
+          this.log('warn', `Failed to fetch details for ticket ${ticket.id}: ${error.message}`);
+          
+          // Fallback to list data with missing fields marked
+          return {
+            ...ticket,
+            _extraction_source: 'list_api_fallback',
+            _detail_extraction_failed: true,
+            _detail_extraction_error: error.message
+          };
+        }
+      });
+      
+      const batchResults = await Promise.all(detailPromises);
+      detailedTickets.push(...batchResults);
+      
+      // Rate limiting between batches (respect Freshservice API limits)
+      if (i + batchSize < ticketList.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+      }
+    }
+    
+    const successCount = detailedTickets.filter(t => t._extraction_source === 'detail_api').length;
+    const fallbackCount = detailedTickets.filter(t => t._extraction_source === 'list_api_fallback').length;
+    
+    this.log('info', `Detail extraction completed: ${successCount} successful, ${fallbackCount} fallbacks`);
+    
+    return detailedTickets;
+  }
+
+  /**
+   * Get the include parameters for ticket detail API calls
+   */
+  private getTicketDetailIncludes(options: ExtractionOptions): string {
+    const defaultIncludes = ['tags', 'requester', 'stats'];
+    const customIncludes = options.ticketIncludes || [];
+    const allIncludes = [...new Set([...defaultIncludes, ...customIncludes])];
+    
+    if (allIncludes.length > 0) {
+      return `?include=${allIncludes.join(',')}`;
+    }
+    
+    return '';
   }
 
   private async extractAssets(options: ExtractionOptions): Promise<ExtractedData> {

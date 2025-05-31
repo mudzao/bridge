@@ -127,7 +127,9 @@ export class MigrationWorker {
       await this.emitProgress(jobId, tenantId, 'progress', {
         progress: 30 + (i / entities.length) * 40,
         status: JobStatus.EXTRACTING,
-        message: `Extracting ${entityType} data`,
+        message: entityType === 'tickets' ? 
+          `Extracting ${entityType} data with complete details (descriptions, tags, attachments)` : 
+          `Extracting ${entityType} data`,
         phase: 'extracting',
         currentEntity: entityType
       });
@@ -142,6 +144,11 @@ export class MigrationWorker {
             batchSize: config?.batchSize || 100,
             startDate: config?.startDate,
             endDate: config?.endDate,
+            
+            // 🆕 Enhanced detail extraction options for tickets
+            includeDetails: entityType === 'tickets' ? (config?.includeDetails !== false) : false,
+            detailBatchSize: config?.detailBatchSize || 10,
+            ticketIncludes: config?.ticketIncludes || ['tags', 'conversations', 'assets', 'requester', 'stats'],
           }
         );
 
@@ -162,7 +169,9 @@ export class MigrationWorker {
         await this.emitProgress(jobId, tenantId, 'progress', {
           progress: entityProgress,
           status: JobStatus.EXTRACTING,
-          message: `Extracted ${extractedData.records.length} ${entityType} records`,
+          message: entityType === 'tickets' ? 
+            `Extracted ${extractedData.records.length} ${entityType} records with complete details` : 
+            `Extracted ${extractedData.records.length} ${entityType} records`,
           phase: 'extracting',
           currentEntity: entityType,
           recordsProcessed: totalExtracted,

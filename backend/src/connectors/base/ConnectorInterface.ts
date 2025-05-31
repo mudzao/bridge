@@ -23,6 +23,11 @@ export interface ExtractionOptions {
   endDate?: string;
   cursor?: string;
   filters?: Record<string, any>;
+  
+  // New options for detailed extraction
+  includeDetails?: boolean;          // Whether to fetch detailed information (default: true for tickets)
+  detailBatchSize?: number;          // Batch size for detail API calls (default: 10, max: 20)
+  ticketIncludes?: string[];         // Additional includes for ticket detail API (e.g., 'conversations', 'assets')
 }
 
 // New interfaces for loading operations
@@ -64,6 +69,8 @@ export interface EntityDefinition {
   extraction: {
     endpoint: string;
     method: 'GET';
+    detailEndpoint?: string;         // Optional detail endpoint for two-step extraction (e.g., '/tickets/{id}')
+    detailRequired?: boolean;        // Whether detail extraction is required for complete data
     fields: Record<string, FieldDefinition>;
     pagination?: {
       type: 'cursor' | 'offset' | 'page';
