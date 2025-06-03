@@ -805,3 +805,11 @@ Day 1 established a comprehensive foundation including development environment s
 
 **Key Achievement**: Complete end-to-end system with **real API connectivity** and **professional UI**, ready for real-time updates and data export capabilities.
 
+## [Unreleased] - 2025-06-03
+### Changed
+- CSV export for tickets now includes all raw fields from the Freshservice API, including nested objects/arrays as JSON strings for full data validation.
+- Removed all transformation/mapping for status, priority, and source fields in ticket export; raw values are preserved.
+- Cleaned up transformation logic to ensure 1:1 field mapping with the API response for tickets.
+- Confirmed ticket detail extraction uses `?include=tags,requester,stats` for maximum data completeness.
+- Codebase is now ready for upcoming major changes and refactoring.
+
