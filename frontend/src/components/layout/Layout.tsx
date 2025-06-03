@@ -2,7 +2,7 @@ import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Settings, 
-  Activity, 
+  RefreshCcw,
   LogOut, 
   User,
   Menu,
@@ -19,7 +19,7 @@ import { ToastContainer } from '@/components/ui/Toast';
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Connectors', href: '/connectors', icon: Waypoints },
-  { name: 'Jobs', href: '/jobs', icon: Activity },
+  { name: 'Jobs', href: '/jobs', icon: RefreshCcw },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 

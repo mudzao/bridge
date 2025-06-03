@@ -465,29 +465,8 @@ export class FreshserviceConnector extends BaseConnector {
   }
 
   private transformTickets(tickets: FreshserviceTicket[]): any[] {
-    return tickets.map(ticket => ({
-      id: ticket.id,
-      external_id: ticket.id.toString(),
-      subject: ticket.subject,
-      description: ticket.description_text || ticket.description,
-      status: FRESHSERVICE_TICKET_STATUS[ticket.status as keyof typeof FRESHSERVICE_TICKET_STATUS] || 'Unknown',
-      priority: FRESHSERVICE_TICKET_PRIORITY[ticket.priority as keyof typeof FRESHSERVICE_TICKET_PRIORITY] || 'Unknown',
-      type: ticket.type,
-      source: FRESHSERVICE_TICKET_SOURCE[ticket.source as keyof typeof FRESHSERVICE_TICKET_SOURCE] || 'Unknown',
-      requester_id: ticket.requester_id,
-      responder_id: ticket.responder_id,
-      group_id: ticket.group_id,
-      department_id: ticket.department_id,
-      category: ticket.category,
-      sub_category: ticket.sub_category,
-      created_at: ticket.created_at,
-      updated_at: ticket.updated_at,
-      due_by: ticket.due_by,
-      custom_fields: ticket.custom_fields,
-      tags: ticket.tags,
-      attachments: ticket.attachments?.length || 0,
-      source_system: 'freshservice'
-    }));
+    // Return all fields as-is for each ticket, so CSV export includes everything
+    return tickets.map(ticket => ({ ...ticket }));
   }
 
   private transformAssets(assets: FreshserviceAsset[]): any[] {
