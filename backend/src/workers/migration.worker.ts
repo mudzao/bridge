@@ -144,6 +144,7 @@ export class MigrationWorker {
             batchSize: config?.batchSize || 100,
             startDate: config?.startDate,
             endDate: config?.endDate,
+            maxRecords: config?.maxRecords,
             
             // 🆕 Enhanced detail extraction options for tickets
             includeDetails: entityType === 'tickets' ? (config?.includeDetails !== false) : false,

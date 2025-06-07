@@ -1,14 +1,14 @@
 import { InternalAxiosRequestConfig } from 'axios';
 import { BaseConnector } from '../base/BaseConnector';
-import {
-  ConnectorConfig,
+import { 
+  ConnectorConfig, 
   ConnectionTestResult,
   ExtractedData,
-  ExtractionOptions,
+  ExtractionOptions, 
   ConnectorMetadata,
   EntityType,
-  LoadOptions,
-  LoadResult,
+  LoadOptions, 
+  LoadResult, 
   LoadError,
   EntityDefinition
 } from '../base/ConnectorInterface';
@@ -18,14 +18,10 @@ import {
   FreshserviceAsset,
   FreshserviceUser,
   FreshserviceGroup,
-  FreshserviceTicketsResponse,
   FreshserviceAssetsResponse,
   FreshserviceUsersResponse,
   FreshserviceGroupsResponse,
   FRESHSERVICE_SCHEMAS,
-  FRESHSERVICE_TICKET_STATUS,
-  FRESHSERVICE_TICKET_PRIORITY,
-  FRESHSERVICE_TICKET_SOURCE,
   FRESHSERVICE_ENTITY_DEFINITIONS
 } from './FreshserviceTypes';
 import axios from 'axios';
@@ -33,22 +29,24 @@ import axios from 'axios';
 export class FreshserviceConnector extends BaseConnector {
   private freshserviceConfig: FreshserviceConfig;
 
-  constructor(config: ConnectorConfig) {
+  constructor(config: ConnectorConfig, connectorId?: string) {
     const metadata: ConnectorMetadata = {
-      name: 'Freshservice',
       type: 'FRESHSERVICE',
+      name: 'Freshservice',
+      description: 'Freshservice IT Service Management platform connector',
       version: '1.0.0',
-      supportedEntities: ['tickets', 'assets', 'users', 'groups'],
-      authType: 'api_key',
-      baseUrl: `https://${config.domain}.freshservice.com/api/v2`,
       capabilities: {
-        extraction: true,
-        loading: true,
-        bidirectional: true
+        maxBatchSize: 100,
+        defaultBatchSize: 100,
+        maxDetailBatchSize: 20,
+        defaultDetailBatchSize: 10,
+        supportsPagination: true,
+        supportsDateFiltering: true,
+        supportsDetailExtraction: true
       }
     };
 
-    super(config, metadata);
+    super(config, metadata, connectorId);
     this.freshserviceConfig = config as FreshserviceConfig;
     this.validateConfig();
     this.setupHttpClient();
@@ -163,58 +161,110 @@ export class FreshserviceConnector extends BaseConnector {
 
   private async extractTickets(options: ExtractionOptions): Promise<ExtractedData> {
     const endpoint = '/tickets';
-    const params: any = {
-      per_page: options.batchSize || 100,
-      include: 'requester,stats'
-    };
+    const maxRecords = options.maxRecords;
+    const batchSize = options.batchSize || 100;
+    
+    let allTickets: any[] = [];
+    let currentPage = options.cursor ? parseInt(options.cursor) : 1;
+    let totalCount = 0;
+    let hasMorePages = true;
 
-    if (options.startDate) {
-      params.updated_since = options.startDate;
-    }
+    this.log('info', 'Starting multi-page ticket extraction from Freshservice');
 
-    if (options.cursor) {
-      params.page = parseInt(options.cursor);
-    }
+    // Multi-page extraction loop
+    while (hasMorePages) {
+      const params: any = {
+        per_page: batchSize,
+        include: 'requester,stats',
+        page: currentPage
+      };
 
-    if (options.filters) {
-      Object.assign(params, options.filters);
-    }
-
-    try {
-      // Step 1: Get ticket list with basic info
-      this.log('info', 'Extracting ticket list from Freshservice');
-      const response = await this.httpClient.get<FreshserviceTicketsResponse>(endpoint, { params });
-      const ticketList = response.data.tickets || [];
-      const nextCursor = this.getNextCursor(response);
-      
-      // Step 2: Determine if we need detailed information
-      const needsDetailExtraction = this.shouldExtractTicketDetails(options);
-      
-      if (needsDetailExtraction && ticketList.length > 0) {
-        this.log('info', `Fetching detailed information for ${ticketList.length} tickets`);
-        const detailedTickets = await this.fetchTicketDetails(ticketList, options);
-        
-        return {
-          entityType: options.entityType,
-          records: detailedTickets,
-          totalCount: response.data.total || 0,
-          hasMore: this.hasMorePages(response),
-          ...(nextCursor && { nextCursor })
-        };
+      if (options.startDate) {
+        params.updated_since = options.startDate;
       }
+
+      if (options.filters) {
+        Object.assign(params, options.filters);
+      }
+
+      try {
+        this.log('info', `Extracting ticket page ${currentPage} (${allTickets.length} records so far)`);
+        const response = await this.makeRateLimitedRequest('get', endpoint, { params });
+        const pageTickets = response.data.tickets || [];
+        
+        // Store total count from first page
+        if (currentPage === 1) {
+          totalCount = response.data.total || 0;
+          this.log('info', `Total tickets available: ${totalCount}`);
+        }
+
+        // Add tickets from this page
+        allTickets.push(...pageTickets);
+        this.log('info', `Page ${currentPage}: Retrieved ${pageTickets.length} tickets (total: ${allTickets.length})`);
+
+        // Check if we should continue pagination
+        hasMorePages = this.hasMorePages(response);
+        
+        // Stop if we've hit maxRecords limit
+        if (maxRecords && allTickets.length >= maxRecords) {
+          allTickets = allTickets.slice(0, maxRecords);
+          this.log('info', `Reached maxRecords limit of ${maxRecords}. Stopping extraction.`);
+          hasMorePages = false;
+          break;
+        }
+
+        // Stop if no more pages or empty response
+        if (!hasMorePages || pageTickets.length === 0) {
+          this.log('info', `No more pages available. Extraction complete.`);
+          break;
+        }
+
+        currentPage++;
+
+      } catch (error) {
+        this.log('error', `Failed to extract tickets page ${currentPage}`, error);
+        throw error;
+      }
+    }
+
+    this.log('info', `Multi-page extraction completed: ${allTickets.length} tickets extracted`);
+
+    // Step 2: Determine if we need detailed information
+    const needsDetailExtraction = this.shouldExtractTicketDetails(options);
+    
+    if (needsDetailExtraction && allTickets.length > 0) {
+      this.log('info', `Fetching detailed information for ${allTickets.length} tickets`);
+      const detailedTickets = await this.fetchTicketDetails(allTickets, options);
       
-      // Return list data only (basic extraction)
       return {
         entityType: options.entityType,
-        records: ticketList,
-        totalCount: response.data.total || 0,
-        hasMore: this.hasMorePages(response),
-        ...(nextCursor && { nextCursor })
+        records: detailedTickets,
+        totalCount: totalCount,
+        hasMore: false, // We've extracted all available data
+        extractionSummary: {
+          pagesProcessed: currentPage - (options.cursor ? parseInt(options.cursor) : 1),
+          recordsExtracted: allTickets.length,
+          totalAvailable: totalCount,
+          completionRate: totalCount > 0 ? (allTickets.length / totalCount) * 100 : 100,
+          limitedByMaxRecords: maxRecords ? allTickets.length >= maxRecords : false
+        }
       };
-    } catch (error) {
-      this.log('error', 'Failed to extract tickets', error);
-      throw error;
     }
+    
+    // Return list data only (basic extraction)
+    return {
+      entityType: options.entityType,
+      records: allTickets,
+      totalCount: totalCount,
+      hasMore: false, // We've extracted all available data
+      extractionSummary: {
+        pagesProcessed: currentPage - (options.cursor ? parseInt(options.cursor) : 1),
+        recordsExtracted: allTickets.length,
+        totalAvailable: totalCount,
+        completionRate: totalCount > 0 ? (allTickets.length / totalCount) * 100 : 100,
+        limitedByMaxRecords: maxRecords ? allTickets.length >= maxRecords : false
+      }
+    };
   }
 
   /**
@@ -236,52 +286,58 @@ export class FreshserviceConnector extends BaseConnector {
    */
   private async fetchTicketDetails(ticketList: any[], options: ExtractionOptions): Promise<any[]> {
     const detailedTickets: any[] = [];
-    const batchSize = Math.min(options.detailBatchSize || 10, 20); // Max 20 concurrent requests
     const includeParams = this.getTicketDetailIncludes(options);
     
-    // Process tickets in batches to avoid overwhelming the API
-    for (let i = 0; i < ticketList.length; i += batchSize) {
-      const batch = ticketList.slice(i, i + batchSize);
+    this.log('info', `Starting sequential detail extraction for ${ticketList.length} tickets`);
+    
+    // Process tickets one by one to avoid rate limiting
+    for (let i = 0; i < ticketList.length; i++) {
+      const ticket = ticketList[i];
+      const ticketNumber = i + 1;
       
-      this.log('info', `Fetching ticket details batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(ticketList.length/batchSize)} (${batch.length} tickets)`);
+      this.log('info', `Processing ticket ${ticketNumber}/${ticketList.length} (ID: ${ticket.id})`);
       
-      const detailPromises = batch.map(async (ticket) => {
-        try {
-          const detailEndpoint = `/tickets/${ticket.id}${includeParams}`;
-          const detailResponse = await this.httpClient.get(detailEndpoint);
-          
-          // Merge list data with detailed data (detail data takes precedence)
-          return {
-            ...ticket,
-            ...detailResponse.data.ticket,
-            _extraction_source: 'detail_api'
-          };
-        } catch (error: any) {
-          this.log('warn', `Failed to fetch details for ticket ${ticket.id}: ${error.message}`);
-          
-          // Fallback to list data with missing fields marked
-          return {
-            ...ticket,
-            _extraction_source: 'list_api_fallback',
-            _detail_extraction_failed: true,
-            _detail_extraction_error: error.message
-          };
-        }
-      });
+      try {
+        const detailEndpoint = `/tickets/${ticket.id}${includeParams}`;
+        const detailResponse = await this.makeRateLimitedRequest('get', detailEndpoint);
+        
+        // Merge list data with detailed data (detail data takes precedence)
+        detailedTickets.push({
+          ...ticket,
+          ...detailResponse.data.ticket,
+          _extraction_source: 'detail_api'
+        });
+        
+      } catch (error: any) {
+        this.log('warn', `Failed to fetch details for ticket ${ticket.id}: ${error.message}`);
+        
+        // Fallback to list data with missing fields marked
+        detailedTickets.push({
+          ...ticket,
+          _extraction_source: 'list_api_fallback',
+          _detail_extraction_failed: true,
+          _detail_extraction_error: error.message
+        });
+      }
       
-      const batchResults = await Promise.all(detailPromises);
-      detailedTickets.push(...batchResults);
+      // Add delay between requests to prevent rate limit spikes
+      if (ticketNumber < ticketList.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Increased to 1000ms for 60 req/min
+      }
       
-      // Rate limiting between batches (respect Freshservice API limits)
-      if (i + batchSize < ticketList.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+      // Log progress every 50 tickets
+      if (ticketNumber % 50 === 0) {
+        const successCount = detailedTickets.filter(t => t._extraction_source === 'detail_api').length;
+        const successRate = ((successCount / ticketNumber) * 100).toFixed(1);
+        this.log('info', `Progress: ${ticketNumber}/${ticketList.length} processed (${successRate}% success rate)`);
       }
     }
     
     const successCount = detailedTickets.filter(t => t._extraction_source === 'detail_api').length;
     const fallbackCount = detailedTickets.filter(t => t._extraction_source === 'list_api_fallback').length;
+    const successRate = ((successCount / detailedTickets.length) * 100).toFixed(1);
     
-    this.log('info', `Detail extraction completed: ${successCount} successful, ${fallbackCount} fallbacks`);
+    this.log('info', `Detail extraction completed: ${successCount} successful, ${fallbackCount} fallbacks (${successRate}% success rate)`);
     
     return detailedTickets;
   }
@@ -303,107 +359,254 @@ export class FreshserviceConnector extends BaseConnector {
 
   private async extractAssets(options: ExtractionOptions): Promise<ExtractedData> {
     const endpoint = '/assets';
-    const params: any = {
-      per_page: options.batchSize || 100
-    };
+    const maxRecords = options.maxRecords;
+    const batchSize = options.batchSize || 100;
+    
+    let allAssets: any[] = [];
+    let currentPage = options.cursor ? parseInt(options.cursor) : 1;
+    let totalCount = 0;
+    let hasMorePages = true;
 
-    if (options.startDate) {
-      params.updated_since = options.startDate;
-    }
+    this.log('info', 'Starting multi-page asset extraction from Freshservice');
 
-    if (options.cursor) {
-      params.page = parseInt(options.cursor);
-    }
-
-    if (options.filters) {
-      Object.assign(params, options.filters);
-    }
-
-    try {
-      const response = await this.httpClient.get<FreshserviceAssetsResponse>(endpoint, { params });
-      const nextCursor = this.getNextCursor(response);
-      
-      return {
-        entityType: options.entityType,
-        records: response.data.assets || [],
-        totalCount: response.data.total || 0,
-        hasMore: this.hasMorePages(response),
-        ...(nextCursor && { nextCursor })
+    // Multi-page extraction loop
+    while (hasMorePages) {
+      const params: any = {
+        per_page: batchSize,
+        page: currentPage
       };
-    } catch (error) {
-      this.log('error', 'Failed to extract assets', error);
-      throw error;
+
+      if (options.startDate) {
+        params.updated_since = options.startDate;
+      }
+
+      if (options.filters) {
+        Object.assign(params, options.filters);
+      }
+
+      try {
+        this.log('info', `Extracting asset page ${currentPage} (${allAssets.length} records so far)`);
+        const response = await this.httpClient.get<FreshserviceAssetsResponse>(endpoint, { params });
+        const pageAssets = response.data.assets || [];
+        
+        // Store total count from first page
+        if (currentPage === 1) {
+          totalCount = response.data.total || 0;
+          this.log('info', `Total assets available: ${totalCount}`);
+        }
+
+        // Add assets from this page
+        allAssets.push(...pageAssets);
+        this.log('info', `Page ${currentPage}: Retrieved ${pageAssets.length} assets (total: ${allAssets.length})`);
+
+        // Check if we should continue pagination
+        hasMorePages = this.hasMorePages(response);
+        
+        // Stop if we've hit maxRecords limit
+        if (maxRecords && allAssets.length >= maxRecords) {
+          allAssets = allAssets.slice(0, maxRecords);
+          this.log('info', `Reached maxRecords limit of ${maxRecords}. Stopping extraction.`);
+          hasMorePages = false;
+          break;
+        }
+
+        // Stop if no more pages or empty response
+        if (!hasMorePages || pageAssets.length === 0) {
+          this.log('info', `No more pages available. Extraction complete.`);
+          break;
+        }
+
+        currentPage++;
+
+      } catch (error) {
+        this.log('error', `Failed to extract assets page ${currentPage}`, error);
+        throw error;
+      }
     }
+
+    this.log('info', `Multi-page extraction completed: ${allAssets.length} assets extracted`);
+    
+    return {
+      entityType: options.entityType,
+      records: allAssets,
+      totalCount: totalCount,
+      hasMore: false, // We've extracted all available data
+      extractionSummary: {
+        pagesProcessed: currentPage - (options.cursor ? parseInt(options.cursor) : 1),
+        recordsExtracted: allAssets.length,
+        totalAvailable: totalCount,
+        completionRate: totalCount > 0 ? (allAssets.length / totalCount) * 100 : 100,
+        limitedByMaxRecords: maxRecords ? allAssets.length >= maxRecords : false
+      }
+    };
   }
 
   private async extractUsers(options: ExtractionOptions): Promise<ExtractedData> {
     const endpoint = '/requesters';
-    const params: any = {
-      per_page: options.batchSize || 100
-    };
+    const maxRecords = options.maxRecords;
+    const batchSize = options.batchSize || 100;
+    
+    let allUsers: any[] = [];
+    let currentPage = options.cursor ? parseInt(options.cursor) : 1;
+    let totalCount = 0;
+    let hasMorePages = true;
 
-    if (options.startDate) {
-      params.updated_since = options.startDate;
-    }
+    this.log('info', 'Starting multi-page user extraction from Freshservice');
 
-    if (options.cursor) {
-      params.page = parseInt(options.cursor);
-    }
-
-    if (options.filters) {
-      Object.assign(params, options.filters);
-    }
-
-    try {
-      const response = await this.httpClient.get<FreshserviceUsersResponse>(endpoint, { params });
-      const nextCursor = this.getNextCursor(response);
-      
-      return {
-        entityType: options.entityType,
-        records: response.data.requesters || [],
-        totalCount: response.data.total || 0,
-        hasMore: this.hasMorePages(response),
-        ...(nextCursor && { nextCursor })
+    // Multi-page extraction loop
+    while (hasMorePages) {
+      const params: any = {
+        per_page: batchSize,
+        page: currentPage
       };
-    } catch (error) {
-      this.log('error', 'Failed to extract users', error);
-      throw error;
+
+      if (options.startDate) {
+        params.updated_since = options.startDate;
+      }
+
+      if (options.filters) {
+        Object.assign(params, options.filters);
+      }
+
+      try {
+        this.log('info', `Extracting user page ${currentPage} (${allUsers.length} records so far)`);
+        const response = await this.httpClient.get<FreshserviceUsersResponse>(endpoint, { params });
+        const pageUsers = response.data.requesters || [];
+        
+        // Store total count from first page
+        if (currentPage === 1) {
+          totalCount = response.data.total || 0;
+          this.log('info', `Total users available: ${totalCount}`);
+        }
+
+        // Add users from this page
+        allUsers.push(...pageUsers);
+        this.log('info', `Page ${currentPage}: Retrieved ${pageUsers.length} users (total: ${allUsers.length})`);
+
+        // Check if we should continue pagination
+        hasMorePages = this.hasMorePages(response);
+        
+        // Stop if we've hit maxRecords limit
+        if (maxRecords && allUsers.length >= maxRecords) {
+          allUsers = allUsers.slice(0, maxRecords);
+          this.log('info', `Reached maxRecords limit of ${maxRecords}. Stopping extraction.`);
+          hasMorePages = false;
+          break;
+        }
+
+        // Stop if no more pages or empty response
+        if (!hasMorePages || pageUsers.length === 0) {
+          this.log('info', `No more pages available. Extraction complete.`);
+          break;
+        }
+
+        currentPage++;
+
+      } catch (error) {
+        this.log('error', `Failed to extract users page ${currentPage}`, error);
+        throw error;
+      }
     }
+
+    this.log('info', `Multi-page extraction completed: ${allUsers.length} users extracted`);
+    
+    return {
+      entityType: options.entityType,
+      records: allUsers,
+      totalCount: totalCount,
+      hasMore: false, // We've extracted all available data
+      extractionSummary: {
+        pagesProcessed: currentPage - (options.cursor ? parseInt(options.cursor) : 1),
+        recordsExtracted: allUsers.length,
+        totalAvailable: totalCount,
+        completionRate: totalCount > 0 ? (allUsers.length / totalCount) * 100 : 100,
+        limitedByMaxRecords: maxRecords ? allUsers.length >= maxRecords : false
+      }
+    };
   }
 
   private async extractGroups(options: ExtractionOptions): Promise<ExtractedData> {
     const endpoint = '/groups';
-    const params: any = {
-      per_page: options.batchSize || 100
-    };
+    const maxRecords = options.maxRecords;
+    const batchSize = options.batchSize || 100;
+    
+    let allGroups: any[] = [];
+    let currentPage = options.cursor ? parseInt(options.cursor) : 1;
+    let totalCount = 0;
+    let hasMorePages = true;
 
-    if (options.startDate) {
-      params.updated_since = options.startDate;
-    }
+    this.log('info', 'Starting multi-page group extraction from Freshservice');
 
-    if (options.cursor) {
-      params.page = parseInt(options.cursor);
-    }
-
-    if (options.filters) {
-      Object.assign(params, options.filters);
-    }
-
-    try {
-      const response = await this.httpClient.get<FreshserviceGroupsResponse>(endpoint, { params });
-      const nextCursor = this.getNextCursor(response);
-      
-      return {
-        entityType: options.entityType,
-        records: response.data.groups || [],
-        totalCount: response.data.total || 0,
-        hasMore: this.hasMorePages(response),
-        ...(nextCursor && { nextCursor })
+    // Multi-page extraction loop
+    while (hasMorePages) {
+      const params: any = {
+        per_page: batchSize,
+        page: currentPage
       };
-    } catch (error) {
-      this.log('error', 'Failed to extract groups', error);
-      throw error;
+
+      if (options.startDate) {
+        params.updated_since = options.startDate;
+      }
+
+      if (options.filters) {
+        Object.assign(params, options.filters);
+      }
+
+      try {
+        this.log('info', `Extracting group page ${currentPage} (${allGroups.length} records so far)`);
+        const response = await this.httpClient.get<FreshserviceGroupsResponse>(endpoint, { params });
+        const pageGroups = response.data.groups || [];
+        
+        // Store total count from first page
+        if (currentPage === 1) {
+          totalCount = response.data.total || 0;
+          this.log('info', `Total groups available: ${totalCount}`);
+        }
+
+        // Add groups from this page
+        allGroups.push(...pageGroups);
+        this.log('info', `Page ${currentPage}: Retrieved ${pageGroups.length} groups (total: ${allGroups.length})`);
+
+        // Check if we should continue pagination
+        hasMorePages = this.hasMorePages(response);
+        
+        // Stop if we've hit maxRecords limit
+        if (maxRecords && allGroups.length >= maxRecords) {
+          allGroups = allGroups.slice(0, maxRecords);
+          this.log('info', `Reached maxRecords limit of ${maxRecords}. Stopping extraction.`);
+          hasMorePages = false;
+          break;
+        }
+
+        // Stop if no more pages or empty response
+        if (!hasMorePages || pageGroups.length === 0) {
+          this.log('info', `No more pages available. Extraction complete.`);
+          break;
+        }
+
+        currentPage++;
+
+      } catch (error) {
+        this.log('error', `Failed to extract groups page ${currentPage}`, error);
+        throw error;
+      }
     }
+
+    this.log('info', `Multi-page extraction completed: ${allGroups.length} groups extracted`);
+    
+    return {
+      entityType: options.entityType,
+      records: allGroups,
+      totalCount: totalCount,
+      hasMore: false, // We've extracted all available data
+      extractionSummary: {
+        pagesProcessed: currentPage - (options.cursor ? parseInt(options.cursor) : 1),
+        recordsExtracted: allGroups.length,
+        totalAvailable: totalCount,
+        completionRate: totalCount > 0 ? (allGroups.length / totalCount) * 100 : 100,
+        limitedByMaxRecords: maxRecords ? allGroups.length >= maxRecords : false
+      }
+    };
   }
 
   protected getDataArrayKey(entityType: string): string {
@@ -421,26 +624,52 @@ export class FreshserviceConnector extends BaseConnector {
   }
 
   protected hasMorePages(response: any): boolean {
-    const data = response.data;
-    if (!data) return false;
+    // Freshservice uses Link headers for pagination, not JSON response fields
+    const linkHeader = response.headers?.link;
     
-    const currentPage = data.page || 1;
-    const perPage = data.per_page || 100;
-    const total = data.total || 0;
+    if (!linkHeader) {
+      this.log('info', 'No Link header found, assuming no more pages');
+      return false;
+    }
     
-    return (currentPage * perPage) < total;
+    // Check if Link header contains rel="next"
+    const hasNext = linkHeader.includes('rel="next"');
+    this.log('info', `Link header pagination check: ${hasNext ? 'more pages available' : 'last page reached'}`);
+    
+    return hasNext;
   }
 
   protected getNextCursor(response: any): string | undefined {
-    const data = response.data;
-    if (!data || !this.hasMorePages(response)) return undefined;
+    const linkHeader = response.headers?.link;
     
-    const currentPage = data.page || 1;
-    return (currentPage + 1).toString();
+    if (!linkHeader || !linkHeader.includes('rel="next"')) {
+      return undefined;
+    }
+    
+    // Parse page number from Link header
+    // Example: <https://domain.freshservice.com/api/v2/tickets?page=4>; rel="next"
+    const nextPageMatch = linkHeader.match(/[?&]page=(\d+)[^>]*>;\s*rel="next"/);
+    
+    if (nextPageMatch && nextPageMatch[1]) {
+      const nextPage = nextPageMatch[1];
+      this.log('info', `Parsed next page from Link header: ${nextPage}`);
+      return nextPage;
+    }
+    
+    // Fallback: try to extract from any page parameter in the Link header
+    const fallbackMatch = linkHeader.match(/page=(\d+)/);
+    if (fallbackMatch && fallbackMatch[1]) {
+      const nextPage = fallbackMatch[1];
+      this.log('info', `Fallback: extracted page from Link header: ${nextPage}`);
+      return nextPage;
+    }
+    
+    this.log('warn', 'Could not parse page number from Link header', { linkHeader });
+    return undefined;
   }
 
   public getSupportedEntities(): string[] {
-    return this.metadata.supportedEntities;
+    return ['tickets', 'assets', 'users', 'groups'];
   }
 
   public getEntitySchema(entityType: string): Record<string, any> {

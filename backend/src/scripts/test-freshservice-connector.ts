@@ -32,7 +32,7 @@ async function testFreshserviceConnector() {
       // Missing apiKey
     };
 
-    const connector = ConnectorFactory.createConnector('FRESHSERVICE', validConfig);
+    ConnectorFactory.createConnector('FRESHSERVICE', validConfig);
     console.log('✅ Valid config accepted');
 
     try {

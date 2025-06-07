@@ -439,4 +439,29 @@ export async function jobRoutes(fastify: FastifyInstance) {
       });
     }
   });
+
+  // Get rate limiting statistics
+  fastify.get('/jobs/rate-limits', {
+    preHandler: [authenticateUser],
+  }, async (_request, reply) => {
+    try {
+      const { rateLimiterService } = await import('@/services/rate-limiter.service');
+      const rateLimitStats = await rateLimiterService.getAllRateLimitStats();
+
+      const response: ApiResponse = {
+        success: true,
+        data: rateLimitStats,
+        message: 'Rate limit statistics retrieved successfully',
+      };
+
+      return reply.status(200).send(response);
+    } catch (error) {
+      fastify.log.error('Get rate limit stats error:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Internal Server Error',
+        message: 'Failed to retrieve rate limit statistics',
+      });
+    }
+  });
 } 

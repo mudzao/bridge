@@ -111,6 +111,7 @@ export interface CreateJobRequest {
     batchSize?: number;
     startDate?: string;
     endDate?: string;
+    maxRecords?: number;
     filters?: Record<string, any>;
   };
 }

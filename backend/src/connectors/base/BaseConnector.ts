@@ -13,16 +13,19 @@ import {
   LoadError,
   EntityDefinition
 } from './ConnectorInterface';
+import { rateLimiterService } from '@/services/rate-limiter.service';
 
 export abstract class BaseConnector implements ConnectorInterface {
   protected config: ConnectorConfig;
   protected httpClient: AxiosInstance;
   protected metadata: ConnectorMetadata;
   protected isAuthenticated: boolean = false;
+  protected connectorId: string; // Add connector ID for rate limiting
 
-  constructor(config: ConnectorConfig, metadata: ConnectorMetadata) {
+  constructor(config: ConnectorConfig, metadata: ConnectorMetadata, connectorId?: string) {
     this.config = config;
     this.metadata = metadata;
+    this.connectorId = connectorId || `${metadata.type}_${Date.now()}`; // Fallback ID
     
     // Create HTTP client with base configuration
     this.httpClient = axios.create({
@@ -54,6 +57,27 @@ export abstract class BaseConnector implements ConnectorInterface {
    * Handle HTTP errors and convert to ConnectorError
    */
   protected handleHttpError(error: any): Promise<never> {
+    // Handle rate limiting (429) errors
+    if (error.response?.status === 429) {
+      const retryAfter = error.response.headers['retry-after'];
+      rateLimiterService.record429Error(
+        this.connectorId,
+        this.metadata.type,
+        retryAfter
+      );
+      
+      const connectorError: ConnectorError = new Error(
+        `Rate limit exceeded. Retry after ${retryAfter || 'unknown'} seconds.`
+      ) as ConnectorError;
+      
+      connectorError.code = 'RATE_LIMITED';
+      connectorError.statusCode = 429;
+      connectorError.retryAfter = retryAfter ? parseInt(retryAfter) * 1000 : undefined;
+      connectorError.details = { retryAfter, ...error.response?.data };
+      
+      return Promise.reject(connectorError);
+    }
+
     const connectorError: ConnectorError = new Error(
       error.response?.data?.message || error.message || 'Unknown error'
     ) as ConnectorError;
@@ -63,6 +87,102 @@ export abstract class BaseConnector implements ConnectorInterface {
     connectorError.details = error.response?.data;
     
     return Promise.reject(connectorError);
+  }
+
+  /**
+   * Make rate-limited HTTP request
+   */
+  protected async makeRateLimitedRequest(
+    method: 'get' | 'post' | 'put' | 'delete',
+    endpoint: string,
+    options: any = {},
+    retryCount: number = 0
+  ): Promise<any> {
+    const maxRetries = 3;
+    
+    try {
+      // Check rate limit before making request
+      const rateLimitResult = await rateLimiterService.checkRateLimit(
+        this.connectorId,
+        this.metadata.type
+      );
+
+      if (!rateLimitResult.allowed) {
+        this.log('warn', `Rate limit exceeded for ${this.metadata.type}:${this.connectorId}`, {
+          remainingRequests: rateLimitResult.remainingRequests,
+          resetTime: new Date(rateLimitResult.resetTime).toISOString()
+        });
+
+        // Wait for rate limit to reset
+        await rateLimiterService.waitForRateLimit(
+          this.connectorId,
+          this.metadata.type,
+          rateLimitResult.retryAfterMs
+        );
+
+        // Retry the request
+        return this.makeRateLimitedRequest(method, endpoint, options, retryCount + 1);
+      }
+
+      // Make the actual HTTP request
+      const response = await this.httpClient[method](endpoint, options);
+      
+      this.log('info', `API request successful: ${method.toUpperCase()} ${endpoint}`, {
+        remainingRequests: rateLimitResult.remainingRequests
+      });
+      
+      return response;
+      
+    } catch (error: any) {
+      // Handle 429 errors with circuit breaker pattern
+      if (error.response?.status === 429) {
+        const retryAfter = error.response.headers['retry-after'];
+        const retryAfterMs = retryAfter ? parseInt(retryAfter) * 1000 : 60000; // Default 60 seconds
+        
+        // Record the 429 error
+        await rateLimiterService.record429Error(
+          this.connectorId,
+          this.metadata.type,
+          retryAfter
+        );
+        
+        this.log('warn', `429 Rate limit exceeded from API. Pausing extraction for ${retryAfterMs}ms`, {
+          retryAfter,
+          endpoint,
+          retryCount: retryCount + 1
+        });
+        
+        // Circuit breaker: pause the entire extraction process
+        await new Promise(resolve => setTimeout(resolve, retryAfterMs));
+        
+        // Retry the same request (don't fail and move to next ticket)
+        if (retryCount < maxRetries) {
+          this.log('info', `Retrying request after rate limit pause: ${method.toUpperCase()} ${endpoint}`);
+          return this.makeRateLimitedRequest(method, endpoint, options, retryCount + 1);
+        } else {
+          // After max retries, throw error but with clear message
+          const circuitBreakerError = new Error(
+            `Rate limit exceeded: Failed after ${maxRetries} retries with 429 errors. API may need longer cool-down period.`
+          ) as any;
+          circuitBreakerError.code = 'CIRCUIT_BREAKER_OPEN';
+          circuitBreakerError.statusCode = 429;
+          circuitBreakerError.retryAfter = retryAfterMs;
+          throw circuitBreakerError;
+        }
+      }
+      
+      // Handle other HTTP errors normally
+      if (error.response?.status) {
+        const httpError = new Error(
+          error.response?.data?.message || error.message || 'HTTP request failed'
+        ) as any;
+        httpError.statusCode = error.response.status;
+        httpError.details = error.response?.data;
+        throw httpError;
+      }
+      
+      throw error;
+    }
   }
 
   /**

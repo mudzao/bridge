@@ -156,9 +156,9 @@ export class SSEService {
    */
   private handleProgressEvent(event: ProgressEvent): void {
     // Send to all clients listening to this job
-    this.clients.forEach((client) => {
-      if (client.jobId === event.jobId && client.tenantId === event.tenantId) {
-        this.sendToClient(client.id, {
+    this.clients.forEach((_client, clientId) => {
+      if (_client.jobId === event.jobId && _client.tenantId === event.tenantId) {
+        this.sendToClient(clientId, {
           type: event.type,
           data: event.data,
           timestamp: event.timestamp,
@@ -175,9 +175,9 @@ export class SSEService {
       const now = Date.now();
       const deadClients: string[] = [];
 
-      this.clients.forEach((client, clientId) => {
+      this.clients.forEach((_client, clientId) => {
         // Check if client is stale (no activity for 30 seconds)
-        if (now - client.lastPing > 30000) {
+        if (now - _client.lastPing > 30000) {
           deadClients.push(clientId);
         } else {
           // Send heartbeat
@@ -214,7 +214,7 @@ export class SSEService {
     console.log('Closing SSE service...');
     
     // Close all client connections
-    this.clients.forEach((client, clientId) => {
+    this.clients.forEach((_client, clientId) => {
       this.removeClient(clientId);
     });
 

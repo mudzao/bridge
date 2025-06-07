@@ -5,10 +5,10 @@ export class ConnectorFactory {
   /**
    * Create a connector instance based on the connector type
    */
-  static createConnector(type: string, config: ConnectorConfig): ConnectorInterface {
+  static createConnector(type: string, config: ConnectorConfig, connectorId?: string): ConnectorInterface {
     switch (type.toUpperCase()) {
       case 'FRESHSERVICE':
-        return new FreshserviceConnector(config);
+        return new FreshserviceConnector(config, connectorId);
       
       default:
         throw new Error(`Unsupported connector type: ${type}`);

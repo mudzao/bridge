@@ -15,6 +15,7 @@ import { Dashboard } from '@/pages/Dashboard';
 import { Connectors } from '@/pages/Connectors';
 import { Jobs } from '@/pages/Jobs';
 import { Settings } from '@/pages/Settings';
+import { NewJobWizardPage } from '@/pages/NewJobWizardPage';
 
 // Stores
 import { useAuthStore } from '@/stores/auth.store';
@@ -54,6 +55,7 @@ function App() {
             
             {/* Jobs */}
             <Route path="jobs" element={<Jobs />} />
+            <Route path="jobs/new" element={<NewJobWizardPage />} />
             
             {/* Connectors */}
             <Route path="connectors" element={<Connectors />} />

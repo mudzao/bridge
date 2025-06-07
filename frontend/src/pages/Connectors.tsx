@@ -567,7 +567,7 @@ export const Connectors: React.FC = () => {
             </button>
 
             <button
-              onClick={() => window.location.href = '/jobs'}
+              onClick={() => window.location.href = '/jobs/new'}
               className="relative group bg-white dark:bg-gray-800 p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500 rounded-lg border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
             >
               <div>

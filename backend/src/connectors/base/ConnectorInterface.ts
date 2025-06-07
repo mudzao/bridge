@@ -14,6 +14,13 @@ export interface ExtractedData {
   totalCount: number;
   hasMore: boolean;
   nextCursor?: string;
+  extractionSummary?: {
+    pagesProcessed: number;
+    recordsExtracted: number;
+    totalAvailable: number;
+    completionRate: number;
+    limitedByMaxRecords: boolean;
+  };
 }
 
 export interface ExtractionOptions {
@@ -21,6 +28,7 @@ export interface ExtractionOptions {
   batchSize?: number;
   startDate?: string;
   endDate?: string;
+  maxRecords?: number;
   cursor?: string;
   filters?: Record<string, any>;
   
@@ -155,18 +163,23 @@ export interface ConnectorInterface {
   validateForLoad(entityType: string, data: any[]): LoadError[];
 }
 
+export interface ConnectorCapabilities {
+  maxBatchSize: number;           // Maximum records per API request (per_page limit)
+  defaultBatchSize: number;       // Recommended batch size for optimal performance
+  maxDetailBatchSize: number;     // Maximum concurrent detail requests (for tickets)
+  defaultDetailBatchSize: number; // Recommended concurrent detail requests
+  maxRecordsLimit?: number;       // Optional: Maximum total records the API can handle
+  supportsPagination: boolean;    // Whether the API supports pagination
+  supportsDateFiltering: boolean; // Whether the API supports date-based filtering
+  supportsDetailExtraction: boolean; // Whether the connector supports detailed extraction
+}
+
 export interface ConnectorMetadata {
-  name: string;
   type: string;
+  name: string;
+  description: string;
   version: string;
-  supportedEntities: string[];
-  authType: 'api_key' | 'oauth' | 'basic' | 'token';
-  baseUrl?: string;
-  capabilities: {
-    extraction: boolean;
-    loading: boolean;
-    bidirectional: boolean;
-  };
+  capabilities: ConnectorCapabilities;  // Add capabilities to metadata
 }
 
 export enum EntityType {
@@ -184,4 +197,5 @@ export interface ConnectorError extends Error {
   code: string;
   statusCode?: number;
   details?: any;
+  retryAfter?: number | undefined; // Milliseconds to wait before retrying
 } 

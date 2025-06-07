@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { DataValidationModal } from '@/components/DataValidationModal';
+import { useNavigate } from 'react-router-dom';
 
 interface Job {
   id: string;
@@ -72,13 +73,13 @@ const createJobSchema = z.object({
 type CreateJobForm = z.infer<typeof createJobSchema>;
 
 export const Jobs: React.FC = () => {
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [validationJobId, setValidationJobId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Fetch jobs
   const { data: jobsResponse, isLoading: jobsLoading, error: jobsError } = useQuery({
@@ -112,32 +113,13 @@ export const Jobs: React.FC = () => {
     failed: jobCounts.failed || 0,
   };
 
-  // Form setup
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    reset,
-    watch,
-  } = useForm<CreateJobForm>({
-    resolver: zodResolver(createJobSchema),
-    defaultValues: {
-      jobType: 'EXTRACTION',
-      entities: [],
-      config: {
-        batchSize: 100,
-      },
-    },
-  });
-
   // Create job mutation
   const createJobMutation = useMutation({
     mutationFn: api.jobs.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['job-stats'] });
-      setShowCreateModal(false);
-      reset();
+      setShowValidationModal(false);
     },
   });
 
@@ -307,165 +289,6 @@ export const Jobs: React.FC = () => {
     return matchesStatus && matchesSearch;
   });
 
-  const renderCreateJobModal = () => {
-    if (!showCreateModal) return null;
-
-    const sourceConnectorId = watch('sourceConnectorId');
-    const jobType = watch('jobType');
-
-    return (
-      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-        <div className="relative top-20 mx-auto p-5 border w-[600px] shadow-lg rounded-md bg-white dark:bg-gray-800">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-              Create {jobType === 'MIGRATION' ? 'Migration' : 'Extraction'} Job
-            </h3>
-            <button
-              onClick={() => {
-                setShowCreateModal(false);
-                reset();
-              }}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <XCircle className="w-5 h-5" />
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit(handleCreateJob)} className="space-y-4">
-            {/* Job Type */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Job Type</label>
-              <select
-                {...register('jobType')}
-                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="EXTRACTION">Data Extraction (Extract & Transform Only)</option>
-                <option value="MIGRATION">Full Migration (Extract, Transform & Load)</option>
-              </select>
-              {errors.jobType && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.jobType.message}</p>
-              )}
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {jobType === 'EXTRACTION' 
-                  ? 'Extract and clean data for future migration. No destination system required.'
-                  : 'Complete migration including loading data to target system.'}
-              </p>
-            </div>
-
-            {/* Source Connector */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Source Connector</label>
-              <select
-                {...register('sourceConnectorId')}
-                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="">Select source connector...</option>
-                {connectors.map((connector: Connector) => (
-                  <option key={connector.id} value={connector.id}>
-                    {connector.name} ({connector.connectorType})
-                  </option>
-                ))}
-              </select>
-              {errors.sourceConnectorId && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.sourceConnectorId.message}</p>
-              )}
-            </div>
-
-            {/* Destination Connector - Conditional */}
-            {jobType === 'MIGRATION' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Destination Connector</label>
-                <select
-                  {...register('destinationConnectorId')}
-                  className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-                >
-                  <option value="">Select destination connector...</option>
-                  {connectors
-                    .filter((c: Connector) => c.id !== sourceConnectorId)
-                    .map((connector: Connector) => (
-                      <option key={connector.id} value={connector.id}>
-                        {connector.name} ({connector.connectorType})
-                      </option>
-                    ))}
-                </select>
-                {errors.destinationConnectorId && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.destinationConnectorId.message}</p>
-                )}
-              </div>
-            )}
-
-            {/* Entities */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Entities to {jobType === 'MIGRATION' ? 'Migrate' : 'Extract'}
-              </label>
-              <div className="mt-2 space-y-2">
-                {['tickets', 'assets', 'users', 'groups', 'incidents'].map((entity) => (
-                  <label key={entity} className="flex items-center">
-                    <input
-                      type="checkbox"
-                      value={entity}
-                      {...register('entities')}
-                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700"
-                    />
-                    <span className="ml-2 text-sm text-gray-700 dark:text-gray-300 capitalize">{entity}</span>
-                  </label>
-                ))}
-              </div>
-              {errors.entities && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.entities.message}</p>
-              )}
-            </div>
-
-            {/* Configuration */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Batch Size</label>
-                <input
-                  type="number"
-                  {...register('config.batchSize', { valueAsNumber: true })}
-                  min="1"
-                  max="1000"
-                  className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Start Date (Optional)</label>
-                <input
-                  type="date"
-                  {...register('config.startDate')}
-                  className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-            </div>
-
-            {/* Form Actions */}
-            <div className="flex justify-end space-x-3 pt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCreateModal(false);
-                  reset();
-                }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || createJobMutation.isPending}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
-              >
-                <Play className="w-4 h-4 mr-2" />
-                {isSubmitting || createJobMutation.isPending ? 'Creating...' : `Create ${jobType === 'MIGRATION' ? 'Migration' : 'Extraction'}`}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    );
-  };
-
   if (jobsLoading) {
     return (
       <div className="space-y-6">
@@ -531,7 +354,7 @@ export const Jobs: React.FC = () => {
           </p>
         </div>
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={() => navigate('/jobs/new')}
           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -629,7 +452,7 @@ export const Jobs: React.FC = () => {
               </p>
               <div className="mt-6">
                 <button
-                  onClick={() => setShowCreateModal(true)}
+                  onClick={() => navigate('/jobs/new')}
                   className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -843,9 +666,6 @@ export const Jobs: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* Create Job Modal */}
-      {renderCreateJobModal()}
 
       {/* Job Details Modal (placeholder) */}
       {selectedJob && (

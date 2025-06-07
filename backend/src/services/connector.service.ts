@@ -28,7 +28,8 @@ export class ConnectorService {
       // Create connector instance
       const connectorInstance = ConnectorFactory.createConnector(
         connector.connectorType,
-        connector.config as any
+        connector.config as any,
+        connectorId
       );
 
       // Test connection
@@ -93,7 +94,8 @@ export class ConnectorService {
       // Create connector instance
       const connectorInstance = ConnectorFactory.createConnector(
         connector.connectorType,
-        connector.config as any
+        connector.config as any,
+        connectorId
       );
 
       // Extract data
@@ -133,7 +135,8 @@ export class ConnectorService {
 
       const connectorInstance = ConnectorFactory.createConnector(
         connector.connectorType,
-        connector.config as any
+        connector.config as any,
+        connectorId
       );
 
       return connectorInstance.getSupportedEntities();
@@ -165,7 +168,8 @@ export class ConnectorService {
 
       const connectorInstance = ConnectorFactory.createConnector(
         connector.connectorType,
-        connector.config as any
+        connector.config as any,
+        connectorId
       );
 
       return connectorInstance.getEntitySchema(entityType);
