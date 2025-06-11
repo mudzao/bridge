@@ -73,7 +73,6 @@ const createJobSchema = z.object({
 type CreateJobForm = z.infer<typeof createJobSchema>;
 
 export const Jobs: React.FC = () => {
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showValidationModal, setShowValidationModal] = useState(false);
@@ -539,7 +538,7 @@ export const Jobs: React.FC = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex justify-end space-x-2">
                               <button
-                                onClick={() => setSelectedJob(job)}
+                                onClick={() => navigate(`/jobs/${job.id}`)}
                                 className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                               >
                                 <Eye className="w-3 h-3 mr-1" />
@@ -627,7 +626,7 @@ export const Jobs: React.FC = () => {
                       
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() => setSelectedJob(job)}
+                          onClick={() => navigate(`/jobs/${job.id}`)}
                           className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                         >
                           <Eye className="w-3 h-3 mr-1" />
@@ -666,85 +665,6 @@ export const Jobs: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* Job Details Modal (placeholder) */}
-      {selectedJob && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-[500px] shadow-lg rounded-md bg-white dark:bg-gray-800">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Job Details</h3>
-              <button
-                onClick={() => setSelectedJob(null)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                <XCircle className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Job ID</label>
-                <p className="mt-1 text-sm text-gray-900 dark:text-white font-mono">{selectedJob.id}</p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
-                <div className="mt-1">{getStatusBadge(selectedJob.status)}</div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Source</label>
-                <p className="mt-1 text-sm text-gray-900 dark:text-white">{getConnectorName(selectedJob.sourceConnectorId)}</p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Destination</label>
-                <p className="mt-1 text-sm text-gray-900 dark:text-white">
-                  {selectedJob.jobType === 'EXTRACTION' || !selectedJob.destinationConnectorId 
-                    ? 'Extraction (No destination)'
-                    : getConnectorName(selectedJob.destinationConnectorId)
-                  }
-                </p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Entities</label>
-                <p className="mt-1 text-sm text-gray-900 dark:text-white">{selectedJob.entities.join(', ')}</p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Created</label>
-                <p className="mt-1 text-sm text-gray-900 dark:text-white">{formatDate(selectedJob.createdAt)}</p>
-              </div>
-              
-              {selectedJob.completedAt && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Completed</label>
-                  <p className="mt-1 text-sm text-gray-900 dark:text-white">{formatDate(selectedJob.completedAt)}</p>
-                </div>
-              )}
-              
-              {selectedJob.status === 'FAILED' && selectedJob.error && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Error Description</label>
-                  <div className="mt-1 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-                    <p className="text-sm text-red-700 dark:text-red-300">{selectedJob.error}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setSelectedJob(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Data Validation Modal */}
       {showValidationModal && validationJobId && (

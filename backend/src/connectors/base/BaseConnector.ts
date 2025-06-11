@@ -291,4 +291,18 @@ export abstract class BaseConnector implements ConnectorInterface {
   public getAuthenticationStatus(): boolean {
     return this.isAuthenticated;
   }
+
+  /**
+   * Default implementation - child classes can override for progress support
+   */
+  async extractDataWithProgress(
+    options: ExtractionOptions,
+    progressCallback?: (current: number, total: number, phase?: string) => Promise<void>
+  ): Promise<ExtractedData> {
+    // Default implementation falls back to regular extraction
+    // Child classes should override this for true progress support
+    // Suppress unused parameter warning
+    void progressCallback;
+    return this.extractData(options);
+  }
 } 

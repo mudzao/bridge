@@ -19,9 +19,10 @@ model Tenant {
   updatedAt DateTime @updatedAt
 
   // Relations
-  users      User[]
-  connectors TenantConnector[]
-  jobs       Job[]
+  users          User[]
+  connectors     TenantConnector[]
+  jobs           Job[]
+  timelineEvents JobTimelineEvent[]
 
   @@map("tenants")
 }
@@ -109,6 +110,7 @@ model Job {
   sourceConnector     TenantConnector @relation("SourceConnector", fields: [sourceConnectorId], references: [id])
   destinationConnector TenantConnector? @relation("DestinationConnector", fields: [destinationConnectorId], references: [id])
   extractedData       JobExtractedData[]
+  timelineEvents      JobTimelineEvent[]
 
   @@map("jobs")
 }
@@ -165,4 +167,23 @@ model JobLoadResult {
   extractedData JobExtractedData @relation(fields: [jobExtractedDataId], references: [id], onDelete: Cascade)
 
   @@map("job_load_results")
+}
+
+// Job timeline events for tracking progress and history
+model JobTimelineEvent {
+  id        String   @id @default(cuid())
+  jobId     String
+  tenantId  String
+  timestamp DateTime @default(now())
+  eventType String   // 'status_change', 'progress_update', 'discovery', 'pause', 'resume', 'error'
+  message   String
+  metadata  Json?    // { recordsProcessed, percentage, currentEntity, etc. }
+  createdAt DateTime @default(now())
+
+  // Relations
+  job    Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, timestamp])
+  @@map("job_timeline_events")
 } 

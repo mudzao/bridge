@@ -26,7 +26,7 @@ export class RateLimiterService {
   // Rate limit configurations for each connector type
   private readonly RATE_LIMITS: ConnectorLimits = {
     FRESHSERVICE: {
-      requestsPerMinute: 60,    // Reduced from 120 to match actual API limits
+      requestsPerMinute: 100,   // Standard Freshservice API limit
       burstSize: 10,            // Reduced from 15
       windowSizeMs: 60000,      // 1 minute window
       retryAfterMs: 5000,       // Reduced from 15000 for faster retries

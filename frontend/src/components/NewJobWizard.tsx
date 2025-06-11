@@ -145,7 +145,14 @@ export const NewJobWizard: React.FC = () => {
       
       const response = await api.jobs.create(jobData);
       console.log('Job created successfully:', response);
-      navigate('/jobs');
+      
+      // Redirect to the specific job detail page instead of jobs list
+      if (response.data?.id) {
+        navigate(`/jobs/${response.data.id}`);
+      } else {
+        // Fallback to jobs list if no job ID returned
+        navigate('/jobs');
+      }
     } catch (error) {
       console.error('Error creating job:', error);
       // Handle error - you might want to show a toast notification
@@ -178,8 +185,7 @@ export const NewJobWizard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Progress Steps */}
-      <div className="relative">
-        <div className="absolute top-0 left-0 right-0 border-t border-gray-200 dark:border-gray-700 -mx-4 sm:-mx-6 md:-mx-8"></div>
+      <div className="border-b border-gray-200 dark:border-gray-700">
         <div className="py-4">
           <div className="flex items-center">
             {STEPS.map((step, index) => (
@@ -209,7 +215,6 @@ export const NewJobWizard: React.FC = () => {
             ))}
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 border-b border-gray-200 dark:border-gray-700 -mx-4 sm:-mx-6 md:-mx-8"></div>
       </div>
 
       {/* Step Content */}

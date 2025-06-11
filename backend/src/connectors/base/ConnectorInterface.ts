@@ -128,6 +128,14 @@ export interface ConnectorInterface {
   extractData(options: ExtractionOptions): Promise<ExtractedData>;
 
   /**
+   * Extract data with progress tracking callback for minute-based updates
+   */
+  extractDataWithProgress(
+    options: ExtractionOptions,
+    progressCallback?: (current: number, total: number, phase?: string) => Promise<void>
+  ): Promise<ExtractedData>;
+
+  /**
    * Load data into the external system
    */
   loadData(options: LoadOptions, data: any[]): Promise<LoadResult>;

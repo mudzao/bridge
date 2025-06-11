@@ -14,6 +14,7 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { Dashboard } from '@/pages/Dashboard';
 import { Connectors } from '@/pages/Connectors';
 import { Jobs } from '@/pages/Jobs';
+import { JobDetailPage } from '@/pages/JobDetailPage';
 import { Settings } from '@/pages/Settings';
 import { NewJobWizardPage } from '@/pages/NewJobWizardPage';
 
@@ -56,6 +57,7 @@ function App() {
             {/* Jobs */}
             <Route path="jobs" element={<Jobs />} />
             <Route path="jobs/new" element={<NewJobWizardPage />} />
+            <Route path="jobs/:jobId" element={<JobDetailPage />} />
             
             {/* Connectors */}
             <Route path="connectors" element={<Connectors />} />

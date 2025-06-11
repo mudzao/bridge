@@ -275,6 +275,8 @@ export async function jobRoutes(fastify: FastifyInstance) {
     try {
       const { jobId } = request.params;
       const user = getUser(request);
+      
+      console.log(`🔥 CANCEL REQUEST RECEIVED for job ${jobId} by user ${user.userId}`);
 
       // Verify job belongs to tenant and can be cancelled
       const job = await prisma.job.findUnique({
@@ -289,17 +291,14 @@ export async function jobRoutes(fastify: FastifyInstance) {
         throw new ValidationError('Job cannot be cancelled in current status');
       }
 
-      // Update job status
-      await prisma.job.update({
-        where: { id: jobId },
-        data: {
-          status: JobStatus.FAILED, // Use FAILED instead of CANCELLED since it's not in enum
-          error: 'Job cancelled by user',
-          updatedAt: new Date(),
-        },
-      });
+      // Cancel job using hybrid approach (database + Redis cache + BullMQ)
+      const queueCancelled = await queueService.cancelJob(jobId);
+      
+      if (!queueCancelled) {
+        throw new Error('Failed to cancel job in queue');
+      }
 
-      // TODO: Cancel job in queue (BullMQ doesn't have direct cancel, but we can mark it)
+      console.log(`✅ Job ${jobId} cancelled successfully through QueueService`);
 
       const response: ApiResponse = {
         success: true,
@@ -321,6 +320,53 @@ export async function jobRoutes(fastify: FastifyInstance) {
         success: false,
         error: 'Internal Server Error',
         message: 'Failed to cancel job',
+      });
+    }
+  });
+
+  // Force delete a job (admin function)
+  fastify.delete<{
+    Params: { jobId: string };
+  }>('/jobs/:jobId/force', {
+    preHandler: [authenticateUser, requireTenantAccess()],
+  }, async (request, reply) => {
+    try {
+      const { jobId } = request.params;
+      const user = getUser(request);
+
+      console.log(`Force deleting job ${jobId}`);
+
+      // Force remove from queue first
+      const queueRemoved = await queueService.forceRemoveJob(jobId);
+      
+      // Delete from database (cascade delete related data)
+      await prisma.job.delete({
+        where: { id: jobId, tenantId: user.tenantId },
+      });
+
+      console.log(`Job ${jobId} force deleted - Queue: ${queueRemoved ? 'Removed' : 'Not found'}, DB: Deleted`);
+
+      const response: ApiResponse = {
+        success: true,
+        data: { deletedJobId: jobId },
+        message: 'Job force deleted successfully',
+      };
+
+      return reply.status(200).send(response);
+    } catch (error) {
+      if ((error as any).code === 'P2025') {
+        return reply.status(404).send({
+          success: false,
+          error: 'Not Found',
+          message: 'Job not found',
+        });
+      }
+
+      console.error('Force delete job error:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Internal Server Error',
+        message: 'Failed to force delete job',
       });
     }
   });
@@ -461,6 +507,222 @@ export async function jobRoutes(fastify: FastifyInstance) {
         success: false,
         error: 'Internal Server Error',
         message: 'Failed to retrieve rate limit statistics',
+      });
+    }
+  });
+
+  // Get minute-by-minute progress data for charts
+  fastify.get<{
+    Params: { jobId: string };
+  }>('/jobs/:jobId/minute-progress', {
+    preHandler: [authenticateUser, requireTenantAccess()],
+  }, async (request, reply) => {
+    try {
+      const { jobId } = request.params;
+      const user = getUser(request);
+
+      // Verify job belongs to tenant
+      const job = await prisma.job.findUnique({
+        where: { id: jobId, tenantId: user.tenantId },
+        select: { id: true },
+      });
+
+      if (!job) {
+        throw new NotFoundError('Job not found');
+      }
+
+      // Import timeline service
+      const { TimelineService } = await import('@/services/timeline.service');
+      const minuteProgress = await TimelineService.getMinuteProgress(jobId, user.tenantId);
+
+      const response: ApiResponse = {
+        success: true,
+        data: minuteProgress,
+        message: 'Minute progress data retrieved successfully',
+      };
+
+      return reply.status(200).send(response);
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return reply.status(error.statusCode).send({
+          success: false,
+          error: error.name,
+          message: error.message,
+        });
+      }
+
+      fastify.log.error('Get minute progress error:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Internal Server Error',
+        message: 'Failed to retrieve minute progress data',
+      });
+    }
+  });
+
+  // Get real job statistics with extraction and migration data
+  fastify.get<{
+    Params: { jobId: string };
+  }>('/jobs/:jobId/statistics', {
+    preHandler: [authenticateUser, requireTenantAccess()],
+  }, async (request, reply) => {
+    try {
+      const { jobId } = request.params;
+      const user = getUser(request);
+
+      // Get job with extracted data and load results
+      const job = await prisma.job.findUnique({
+        where: { id: jobId, tenantId: user.tenantId },
+        include: {
+          extractedData: {
+            include: {
+              loadResults: true,
+            },
+          },
+        },
+      });
+
+      if (!job) {
+        throw new NotFoundError('Job not found');
+      }
+
+      // Aggregate statistics by entity type
+      const entityStats: Record<string, {
+        entityType: string;
+        totalRecords: number;
+        extractionSuccess: number;
+        extractionFailed: number;
+        migrationSuccess: number;
+        migrationFailed: number;
+      }> = {};
+
+      // Process extracted data
+      job.extractedData.forEach(extractedData => {
+        const entityType = extractedData.entityType;
+        
+        if (!entityStats[entityType]) {
+          entityStats[entityType] = {
+            entityType,
+            totalRecords: 0,
+            extractionSuccess: 0,
+            extractionFailed: 0,
+            migrationSuccess: 0,
+            migrationFailed: 0,
+          };
+        }
+
+        // Add extraction data
+        entityStats[entityType].totalRecords += extractedData.recordCount;
+        entityStats[entityType].extractionSuccess += extractedData.recordCount;
+        
+        // Add migration/loading data from load results
+        if (extractedData.loadResults) {
+          extractedData.loadResults.forEach(loadResult => {
+            entityStats[entityType]!.migrationSuccess += loadResult.successCount ?? 0;
+            entityStats[entityType]!.migrationFailed += loadResult.failedCount ?? 0;
+          });
+        }
+      });
+
+      // Convert to array and add any entities that were planned but had no data
+      const entityStatsArray = Object.values(entityStats);
+      
+      // Add entities from job.entities that might not have extraction data yet
+      job.entities?.forEach(entityType => {
+        if (!entityStats[entityType]) {
+          entityStatsArray.push({
+            entityType,
+            totalRecords: 0,
+            extractionSuccess: 0,
+            extractionFailed: 0,
+            migrationSuccess: 0,
+            migrationFailed: 0,
+          });
+        }
+      });
+
+      const response: ApiResponse = {
+        success: true,
+        data: {
+          jobId,
+          status: job.status,
+          entities: entityStatsArray,
+          summary: {
+            totalEntities: entityStatsArray.length,
+            totalRecords: entityStatsArray.reduce((sum, e) => sum + e.totalRecords, 0),
+            totalExtractionSuccess: entityStatsArray.reduce((sum, e) => sum + e.extractionSuccess, 0),
+            totalExtractionFailed: entityStatsArray.reduce((sum, e) => sum + e.extractionFailed, 0),
+            totalMigrationSuccess: entityStatsArray.reduce((sum, e) => sum + e.migrationSuccess, 0),
+            totalMigrationFailed: entityStatsArray.reduce((sum, e) => sum + e.migrationFailed, 0),
+          },
+        },
+        message: 'Job statistics retrieved successfully',
+      };
+
+      return reply.status(200).send(response);
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return reply.status(error.statusCode).send({
+          success: false,
+          error: error.name,
+          message: error.message,
+        });
+      }
+
+      fastify.log.error('Get job statistics error:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Internal Server Error',
+        message: 'Failed to retrieve job statistics',
+      });
+    }
+  });
+
+  // Get job timeline events
+  fastify.get<{
+    Params: { jobId: string };
+  }>('/jobs/:jobId/timeline', {
+    preHandler: [authenticateUser, requireTenantAccess()],
+  }, async (request, reply) => {
+    try {
+      const { jobId } = request.params;
+      const user = getUser(request);
+
+      // Verify job belongs to tenant
+      const job = await prisma.job.findUnique({
+        where: { id: jobId, tenantId: user.tenantId },
+        select: { id: true },
+      });
+
+      if (!job) {
+        throw new NotFoundError('Job not found');
+      }
+
+      // Import timeline service
+      const { TimelineService } = await import('@/services/timeline.service');
+      const timeline = await TimelineService.getJobTimeline(jobId, user.tenantId);
+
+      const response: ApiResponse = {
+        success: true,
+        data: timeline,
+        message: 'Job timeline retrieved successfully',
+      };
+
+      return reply.status(200).send(response);
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return reply.status(error.statusCode).send({
+          success: false,
+          error: error.name,
+          message: error.message,
+        });
+      }
+
+      fastify.log.error('Get job timeline error:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Internal Server Error',
+        message: 'Failed to retrieve job timeline',
       });
     }
   });

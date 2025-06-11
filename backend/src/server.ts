@@ -142,6 +142,8 @@ async function gracefulShutdown() {
   try {
     fastify.log.info('Starting graceful shutdown...');
     
+    // Note: Workers run separately and should be stopped independently
+    
     // Close Fastify server
     await fastify.close();
     
@@ -177,6 +179,10 @@ async function start() {
     fastify.log.info(`🚀 Server running at http://${serverConfig.host}:${serverConfig.port}`);
     fastify.log.info(`📊 Bull Board dashboard: ${bullBoardService.getDashboardUrl(`http://${serverConfig.host}:${serverConfig.port}`)}`);
     fastify.log.info(`🔧 Environment: ${appConfig.env}`);
+    
+    // Note: Workers run separately via `npm run worker:dev`
+    fastify.log.info(`📋 Server started successfully - workers should be started separately`);
+    fastify.log.info(`💡 To start workers: npm run worker:dev`);
   } catch (error) {
     fastify.log.error('Error starting server:', error);
     process.exit(1);

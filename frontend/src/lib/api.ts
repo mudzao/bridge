@@ -145,6 +145,16 @@ export const api = {
       return response.data;
     },
 
+    getMinuteProgress: async (id: string) => {
+      const response = await apiClient.get(`/api/jobs/${id}/minute-progress`);
+      return response.data;
+    },
+
+    getTimeline: async (id: string) => {
+      const response = await apiClient.get(`/api/jobs/${id}/timeline`);
+      return response.data;
+    },
+
     cancel: async (id: string) => {
       const response = await apiClient.post(`/api/jobs/${id}/cancel`);
       return response.data;
@@ -170,6 +180,11 @@ export const api = {
 
     getAvailableEntities: async (id: string) => {
       const response = await apiClient.get(`/api/jobs/${id}/entities`);
+      return response.data;
+    },
+
+    getStatistics: async (id: string) => {
+      const response = await apiClient.get(`/api/jobs/${id}/statistics`);
       return response.data;
     },
 
