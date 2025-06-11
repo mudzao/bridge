@@ -255,4 +255,39 @@ public/
 # Backup files
 *.backup
 *.bak
-*.tmp 
+*.tmp
+
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+/build
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Development and testing files
+*.test.js
+*test*.js
+*debug*.js
+*cancel*.js
+*force*.js
+*cleanup*.js
+wip.md
+test_*.md
+backend/test-*.js
+backend/debug-*.js
+backend/cancel-*.ts
+backend/force-*.js
+backend/clear-*.js 
