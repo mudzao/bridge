@@ -346,7 +346,7 @@ export class FreshserviceConnector extends BaseConnector {
    * Get the include parameters for ticket detail API calls
    */
   private getTicketDetailIncludes(options: ExtractionOptions): string {
-    const defaultIncludes = ['tags', 'requester', 'stats'];
+    const defaultIncludes = ['conversations'];
     const customIncludes = options.ticketIncludes || [];
     const allIncludes = [...new Set([...defaultIncludes, ...customIncludes])];
     
@@ -1117,5 +1117,139 @@ export class FreshserviceConnector extends BaseConnector {
     });
 
     return errors;
+  }
+
+  /**
+   * Extract data with minute-based progress tracking
+   */
+  public override async extractDataWithProgress(
+    options: ExtractionOptions,
+    progressCallback?: (current: number, total: number, phase?: string) => Promise<void>
+  ): Promise<ExtractedData> {
+    switch (options.entityType) {
+      case 'tickets':
+        return this.extractTicketsWithProgress(options, progressCallback);
+      case 'assets':
+        return this.extractAssets(options);
+      case 'users':
+        return this.extractUsers(options);
+      case 'groups':
+        return this.extractGroups(options);
+      default:
+        throw new Error(`Unsupported entity type: ${options.entityType}`);
+    }
+  }
+
+  /**
+   * Extract tickets with progress callback support
+   */
+  private async extractTicketsWithProgress(
+    options: ExtractionOptions,
+    progressCallback?: (current: number, total: number, phase?: string) => Promise<void>
+  ): Promise<ExtractedData> {
+    this.log('info', 'Starting ticket extraction with progress tracking');
+    
+    // Step 1: Extract ticket list first (without detailed extraction to avoid double processing)
+    const listOnlyOptions = { ...options, includeDetails: false };
+    const listResult = await this.extractTickets(listOnlyOptions);
+    const totalTickets = listResult.records.length;
+    
+    // 📊 Discovery logging now handled by common timeline system
+    
+    // Step 2: Check if detailed extraction is needed
+    const needsDetailExtraction = this.shouldExtractTicketDetails(options);
+    
+    if (!needsDetailExtraction) {
+      this.log('info', 'Ticket details not required, using list data only');
+      return listResult;
+    }
+    
+    // Step 3: Extract detailed information with progress tracking
+    this.log('info', `Starting detail extraction for ${totalTickets} tickets`);
+    const detailedTickets = await this.fetchTicketDetailsWithProgress(
+      listResult.records, 
+      options,
+      progressCallback
+    );
+    
+    return {
+      ...listResult,
+      records: detailedTickets,
+      totalCount: listResult.totalCount || detailedTickets.length
+    };
+  }
+  
+  /**
+   * Fetch detailed ticket information with progress tracking and timeline logging
+   */
+  private async fetchTicketDetailsWithProgress(
+    ticketList: any[], 
+    options: ExtractionOptions,
+    progressCallback?: (current: number, total: number, phase?: string) => Promise<void>
+  ): Promise<any[]> {
+    const detailedTickets: any[] = [];
+    const includeParams = this.getTicketDetailIncludes(options);
+    const totalTickets = ticketList.length;
+    
+    // 🔍 Debug: Check if progress callback is provided
+    console.log(`🔍 [DEBUG] fetchTicketDetailsWithProgress - progressCallback provided: ${!!progressCallback}`);
+    
+    this.log('info', `Starting sequential detail extraction for ${totalTickets} tickets`);
+    
+    // Process tickets one by one to avoid rate limiting
+    for (let i = 0; i < ticketList.length; i++) {
+      const ticket = ticketList[i];
+      const ticketNumber = i + 1;
+      
+      this.log('info', `Processing ticket ${ticketNumber}/${totalTickets} (ID: ${ticket.id})`);
+      
+      try {
+        const detailEndpoint = `/tickets/${ticket.id}${includeParams}`;
+        const detailResponse = await this.makeRateLimitedRequest('get', detailEndpoint);
+        
+        // Merge list data with detailed data
+        detailedTickets.push({
+          ...ticket,
+          ...detailResponse.data.ticket,
+          _extraction_source: 'detail_api'
+        });
+        
+      } catch (error: any) {
+        // 📊 Rate limiting events now handled by common timeline system at regular intervals
+        
+        this.log('warn', `Failed to fetch details for ticket ${ticket.id}: ${error.message}`);
+        
+        // Fallback to list data
+        detailedTickets.push({
+          ...ticket,
+          _extraction_source: 'list_api_fallback',
+          _detail_extraction_failed: true,
+          _detail_extraction_error: error.message
+        });
+      }
+      
+      // 🔥 Call progress callback on EVERY ticket for immediate cancellation detection
+      if (progressCallback) {
+        console.log(`🔍 [DEBUG] About to call progressCallback(${ticketNumber}, ${totalTickets}, 'detail_extraction')`);
+        try {
+          await progressCallback(ticketNumber, totalTickets, 'detail_extraction');
+          console.log(`🔍 [DEBUG] progressCallback completed successfully for ticket ${ticketNumber}`);
+        } catch (cancellationError) {
+          // Progress callback threw exception - job is being cancelled
+          this.log('info', `🚫 Job cancellation detected at ticket ${ticketNumber}/${totalTickets} - stopping extraction`);
+          throw cancellationError; // Re-throw to stop the entire extraction
+        }
+      } else {
+        console.log(`🔍 [DEBUG] No progressCallback provided for ticket ${ticketNumber}`);
+      }
+      
+      // Add delay between requests (100 requests/minute = 600ms interval)
+      if (ticketNumber < totalTickets) {
+        await new Promise(resolve => setTimeout(resolve, 600));
+      }
+    }
+    
+    this.log('info', `Detail extraction completed: ${detailedTickets.length} tickets processed`);
+    return detailedTickets;
   }
 } 

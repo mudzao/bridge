@@ -1,8 +1,8 @@
 # Project Bridge - Development Changelog
 
 ## Project Status Overview
-**Current Day**: Day 7 ✅ COMPLETED  
-**Last Updated**: June 3, 2025
+**Current Day**: Day 8 ✅ COMPLETED  
+**Last Updated**: June 4, 2025
 
 ### Development Progress by Day
 - ✅ **Day 1**: Development Environment & Core Backend (COMPLETED)
@@ -12,6 +12,7 @@
 - ✅ **Day 5**: Button Styling, Theme Polish & Data Fixes (COMPLETED)
 - ✅ **Day 6**: Advanced Infrastructure & Production Features (COMPLETED)
 - ✅ **Day 7**: Rate Limiting Fixes & 100% Extraction Success (COMPLETED)
+- ✅ **Day 8**: User Experience Polish & Timeline Infrastructure (COMPLETED)
 
 ### Current Capabilities
 - **Authentication**: JWT-based login system with React frontend ✅
@@ -31,20 +32,267 @@
 - **Bidirectional Operations**: Enhanced connector architecture for extraction AND loading ✅
 - **Rate Limiting**: Production-grade API rate limiting with Redis-based sliding window ✅
 - **Job Wizard**: Streamlined 4-step job creation with real connector integration ✅
+- **Job Cancellation**: Fast 600ms cancellation response with Redis cache ✅
+- **Timeline Infrastructure**: Common timeline logging for all connector types ✅
 
 ### Quick Access
 - **Frontend**: `http://localhost:5173` (Vite dev server)
 - **API Base**: `http://localhost:3000/api`
 - **Health Check**: `http://localhost:3000/health`
-- **Dashboard**: `http://localhost:3000/admin/queues` (admin/admin123)
+- **Dashboard**: `httpadmin://localhost:3000/admin/queues` (admin/admin123)
 - **Rate Limits**: `http://localhost:3000/api/jobs/rate-limits`
 - **Test Login**: `admin@acme-corp.com` / `admin123`
+
+---
+
+## Day 8: User Experience Polish & Timeline Infrastructure ✅ COMPLETED
+**Date**: June 4, 2025  
+**Status**: SUCCESSFULLY COMPLETED
+
+### Data Preview Accuracy Improvements 📊
+
+#### Placeholder Data Elimination
+- **Random Number Fix**: Removed hardcoded random placeholder in Data Preview tab
+  - **Issue**: Data Preview showed "Showing preview of 667 records from fs antidote" with random number generator
+  - **Root Cause**: Code used `Math.floor(Math.random() * 500) + 200` as fallback when real data unavailable
+  - **Solution**: Replaced with actual record counts from job statistics API
+  - **Result**: Users now see accurate record counts like "Showing preview of 397 records" based on real data
+- **Dynamic Record Count Display**: Enhanced preview text generation logic
+  - **Priority 1**: Real total from `jobStats.data.entities` (sum of all entity records)
+  - **Priority 2**: Fallback to `job.progress?.totalRecords` if available
+  - **Priority 3**: Shows "..." while loading instead of random numbers
+  - **Result**: Accurate, real-time record counts throughout job lifecycle
+
+#### Text Simplification
+- **Connector Name Removal**: Cleaned up Data Preview display text
+  - **Before**: "Showing preview of 397 records from fs antidote"
+  - **After**: "Showing preview of 397 records"
+  - **Benefit**: Cleaner, more focused user interface without redundant system identification
+
+### CSV Download Functionality Restoration 🔄
+
+#### Critical Bug Resolution
+- **Download Failure Investigation**: Diagnosed and fixed broken CSV download functionality
+  - **User Report**: "it was working perfectly before. but now is not working"
+  - **Root Cause**: Multiple TypeScript compilation errors preventing proper function execution
+  - **Primary Issues**: Type safety errors with `job.id` property access in React components
+- **Enhanced Error Handling**: Comprehensive download error management
+  - **HTTP Status Validation**: Specific error messages for 404, 400, 403 response codes
+  - **Response Type Checking**: Validates blob response format before processing
+  - **User Feedback**: Clear error notifications for different failure scenarios
+  - **Debug Logging**: Added console logging for troubleshooting download issues
+
+#### TypeScript Safety Improvements
+- **Type Guard Enhancements**: Improved type safety for job object handling
+  - **Enhanced Validation**: Added `!job.id` check in addition to existing `!job` validation
+  - **Non-null Assertions**: Strategic use of `job.id!` where job existence is guaranteed
+  - **RecordsPerMinuteChart Fix**: Resolved type error with conditional rendering and proper null checks
+- **Error Boundary Improvements**: Better error handling throughout download workflow
+  - **Blob Creation Validation**: Ensures proper blob response before creating download link
+  - **File Naming Logic**: Enhanced filename extraction from response headers with fallbacks
+  - **Memory Management**: Proper cleanup of object URLs after download completion
+
+### Common Timeline Infrastructure Implementation 🚀
+
+#### Architecture Transformation
+- **Centralized Timeline Logging**: Revolutionary shift from connector-specific to common infrastructure
+  - **Problem Solved**: Timeline logging was inconsistent across different connector types
+  - **Before**: Each connector (FreshService, ServiceNow, Zendesk) needed individual timeline implementation
+  - **After**: Single `ConnectorService.extractDataWithProgressAndTimeline()` method handles all connectors
+  - **Future-Proof**: Any new connector automatically gets detailed timeline logging
+- **Preservation of Cancellation System**: Maintained 600ms cancellation response time
+  - **Critical Requirement**: Preserved existing Redis-based cancellation detection
+  - **Implementation**: New timeline callback wraps existing progress callback without modification
+  - **Verification**: Cancellation mechanism functions identically with enhanced timeline logging
+  - **Safety Guarantee**: All original cancellation logic remains completely unchanged
+
+#### Enhanced Timeline Granularity
+- **Detailed Progress Tracking**: Dramatic improvement in timeline visibility
+  - **Before**: Large gaps between events (e.g., 6-minute silent periods during extraction)
+  - **After**: Regular progress updates every 10% or 50 records processed
+  - **Frequency**: Timeline events now logged at reasonable intervals for better user awareness
+  - **Example Timeline**:
+    ```
+    ├─ 13:05  Starting data extraction job...
+    ├─ 13:05  Connecting to source system and preparing data extraction...
+    ├─ 13:05  Starting tickets extraction from FS Antidote (FRESHSERVICE)
+    ├─ 13:05  Processing tickets: 40/397 records (10%)
+    ├─ 13:06  Processing tickets: 90/397 records (22%)
+    ├─ 13:07  Processing tickets: 140/397 records (35%)
+    └─ 13:11  Data extraction completed: 397 records extracted
+    ```
+
+#### Technical Implementation Details
+- **ConnectorService Enhancement**: New `extractDataWithProgressAndTimeline()` method
+  - **Timeline-Aware Callbacks**: Wraps existing progress callbacks with timeline logging
+  - **Interval-Based Logging**: Smart logging at 10% increments or every 50 records
+  - **Metadata Enrichment**: Detailed metadata including entity type, phase, and percentages
+  - **Error Integration**: Automatic error logging for extraction failures
+  - **Connector Context**: Displays connector name and type in timeline messages
+- **Migration Worker Integration**: Seamless integration with existing job processing
+  - **Method Substitution**: Replaced `extractDataWithProgress()` with timeline-enabled version
+  - **Parameter Addition**: Added `jobId` parameter for timeline context
+  - **Backward Compatibility**: Original method preserved for non-timeline operations
+  - **Cleanup**: Removed duplicate timeline logging from worker level
+
+#### Code Quality & Maintenance
+- **FreshService Connector Cleanup**: Removed connector-specific timeline code
+  - **Eliminated Redundancy**: Removed `TimelineService.logEvent()` calls from connector
+  - **Import Cleanup**: Removed unused timeline service imports
+  - **Rate Limiting Simplification**: Removed granular rate limit timeline events (handled by common system)
+  - **Discovery Event**: Removed duplicate discovery logging (handled by common infrastructure)
+- **Standardized Architecture**: Consistent timeline patterns across all connectors
+  - **Common Interface**: All connectors now use identical timeline infrastructure
+  - **Maintenance Benefits**: Single point of maintenance for timeline functionality
+  - **Consistent User Experience**: Uniform timeline behavior regardless of connector type
+
+### Production Quality Assurance ✅
+
+#### Verification Testing
+- **Timeline Functionality**: Confirmed enhanced timeline working flawlessly
+  - **Test Results**: "work flawlessly" - user verification of detailed progress tracking
+  - **Progress Intervals**: Regular updates from 10% → 22% → 35% → 47% → 60% → 73% → 85% → 98% → 100%
+  - **Completion Tracking**: Proper job completion with final summary statistics
+- **Cancellation Preservation**: Verified existing cancellation mechanism unchanged
+  - **Response Time**: Maintained ~600ms cancellation detection
+  - **Redis Integration**: Progress callback cancellation logic completely preserved
+  - **Error Propagation**: Cancellation errors properly thrown and handled
+- **CSV Download Restoration**: Confirmed CSV download functionality fully operational
+  - **User Confirmation**: "now is working" after fixes applied
+  - **Error Handling**: Robust error management for various failure scenarios
+  - **Type Safety**: All TypeScript compilation errors resolved
+
+#### Business Value Delivered
+- **Enhanced User Confidence**: Detailed timeline visibility builds user trust in long-running jobs
+- **Operational Excellence**: Common infrastructure reduces development and maintenance overhead
+- **Future Scalability**: New connector types automatically inherit professional timeline capabilities
+- **Data Reliability**: Accurate record counts and restored CSV download ensure data integrity
+- **User Experience**: Polished interface with real data display and professional error handling
+
+### Foundation for Day 9
+Day 8 establishes a mature timeline infrastructure and polished user experience, creating the foundation for advanced monitoring capabilities, additional connector types, and enterprise-scale deployment features.
 
 ---
 
 ## Day 7: Rate Limiting Fixes & 100% Extraction Success ✅ COMPLETED
 **Date**: June 3, 2025  
 **Status**: SUCCESSFULLY COMPLETED
+
+### Real Statistics Implementation 🔢
+
+#### Replaced Mock Data with Real Job Statistics
+- **Backend API Endpoint**: New `/jobs/:jobId/statistics` endpoint for real data
+  - **Data Source**: Pulls from `JobExtractedData` and `JobLoadResult` tables
+  - **Entity-Level Statistics**: Detailed breakdown by entity type (tickets, users, assets, groups)
+  - **Aggregated Summary**: Total records, extraction success/failure, migration success/failure
+  - **Real-time Updates**: Auto-refresh every 5 seconds for live statistics
+- **Frontend Integration**: Updated JobDetailPage overview tab
+  - **Real Data Display**: Shows actual extraction and migration statistics from database
+  - **Entity-Level Table**: Displays per-entity success/failure counts with color coding
+  - **Loading States**: Professional loading indicators while fetching statistics
+  - **Fallback Handling**: Graceful handling when no statistics are available yet
+  - **Responsive Design**: Color-coded success (green) and failure (red) statistics
+
+#### Statistics Data Structure
+- **Summary Level**: Total entities, records, extraction success/failure, migration success/failure
+- **Entity Level**: Per-entity breakdown with:
+  - `totalRecords`: Total records discovered for entity
+  - `extractionSuccess`/`extractionFailed`: Records successfully/unsuccessfully extracted
+  - `migrationSuccess`/`migrationFailed`: Records successfully/unsuccessfully migrated
+- **Job Status Integration**: Statistics reflect actual job processing state
+- **Historical Data**: Preserved statistics from completed jobs for analysis
+
+#### User Experience Improvements
+- **Data Accuracy**: Users now see actual job performance metrics instead of random mock data
+- **Progress Transparency**: Real-time statistics updates during job execution
+- **Entity Visibility**: Clear breakdown of which entity types succeeded/failed
+- **Color-Coded Results**: Visual distinction between success (green) and failure (red) metrics
+- **Professional UI**: Loading states and error handling for robust user experience
+
+#### Technical Implementation
+- **Database Queries**: Efficient aggregation queries across JobExtractedData and JobLoadResult tables
+- **API Design**: RESTful endpoint following existing patterns with proper error handling
+- **Frontend Architecture**: React Query integration for caching and real-time updates
+- **Type Safety**: Full TypeScript support for statistics data structures
+- **Error Handling**: Comprehensive error boundaries and fallback states
+
+### Minute-Based Progress Tracking Implementation 🆕
+
+#### Timeline & Chart Quality Fixes 🔧
+- **Duplicate Entry Resolution**: Fixed duplicate timeline entries 
+  - **Root Cause**: Both `TimelineService.logEvent()` and `emitProgress()` were logging timeline events
+  - **Solution**: Created separate `emitProgressOnly()` method for SSE-only updates
+  - **Result**: Clean timeline with no duplicate "Processing tickets" entries
+- **Percentage Calculation Fix**: Corrected confusing percentage display
+  - **Issue**: 27/396 tickets showing as 33% instead of intuitive 7%
+  - **Root Cause**: Percentage based on overall job progress (30-70% range) not entity progress
+  - **Solution**: Added `entityProgressPercentage` for intuitive display: `27/396 (7%)`
+  - **Enhanced Metadata**: Both entity and overall progress percentages tracked
+- **Rate Limiting Timeline**: Moved rate limiting events to during extraction
+  - **Issue**: Rate limiting events clustered at job completion instead of during work
+  - **Solution**: Integrated rate limiting simulation into progress callback (15% chance)
+  - **Timing**: Rate limiting events now occur during actual extraction progress
+  - **Improved UX**: Shorter pauses (1 second vs 2 seconds) for better user experience
+
+#### Enhanced Timeline & Chart Granularity
+- **Interval-Based Logging**: Implemented minute-based progress tracking during extraction
+  - **Progress Callbacks**: New `extractDataWithProgress()` method with callback support
+  - **Minute Checkpoints**: Timeline events logged every 60 seconds during extraction
+  - **Chart Integration**: Multiple bars showing progression over time instead of single completion bar
+  - **Real-time Updates**: Both SSE and timeline events updated during actual extraction work
+
+#### Technical Implementation
+- **ConnectorInterface Enhancement**: Added `extractDataWithProgress()` method signature
+  ```typescript
+  extractDataWithProgress(
+    options: ExtractionOptions,
+    progressCallback?: (current: number, total: number, phase?: string) => Promise<void>
+  ): Promise<ExtractedData>;
+  ```
+- **BaseConnector Update**: Default implementation with fallback to regular extraction
+- **FreshserviceConnector Override**: Full implementation with minute-based progress tracking
+  - **Detail Extraction Progress**: Tracks individual ticket processing with 60-second intervals
+  - **Phase Awareness**: Different progress phases ('list_extraction', 'detail_extraction')
+  - **Completion Tracking**: Final progress callback ensures 100% completion is logged
+
+#### Migration Worker Integration
+- **Enhanced Extraction Flow**: Uses new `ConnectorService.extractDataWithProgress()`
+- **Progress Callback Implementation**: Logs both timeline events and SSE updates
+  ```typescript
+  // Progress callback logs timeline events every minute
+  async (currentProgress: number, totalProgress: number, phase?: string) => {
+    await TimelineService.logEvent({
+      eventType: 'progress_update',
+      message: `Processing ${entityType}: ${currentProgress}/${totalProgress} (${percentage}%)`,
+      metadata: { recordsProcessed: currentRecords, percentage, phase }
+    });
+  }
+  ```
+
+#### ConnectorService Enhancement
+- **New Method**: `extractDataWithProgress()` supports progress callbacks
+- **Backward Compatibility**: Original `extractData()` method preserved for existing flows
+- **Error Handling**: Comprehensive error handling for progress-tracked extractions
+
+#### Expected User Experience Improvements
+- **Timeline Visibility**: Gradual progression instead of 16-minute gaps
+  ```
+  Before: 10:25 → [gap] → 10:41 (clustered events)
+  After:  10:25 → 10:26 → 10:27 → 10:28 → ... → 10:41
+  ```
+- **Chart Granularity**: Multiple progress bars instead of single completion bar
+  ```
+  Before: [Single bar at 10:41: 396 records]
+  After:  [10:26: 60][10:27: 120][10:28: 180]...[10:41: 396]
+  ```
+- **Real-time Awareness**: Users can see extraction actively progressing
+- **Rate Limit Visibility**: Progress pauses when rate limiting occurs
+
+#### Business Value
+- **User Confidence**: Clear visibility into long-running extraction progress
+- **Operational Monitoring**: Minute-by-minute tracking for production deployments
+- **Troubleshooting**: Better diagnostics when extractions slow down or pause
+- **Progress Transparency**: Users understand extraction is active, not stuck
 
 ### Critical Rate Limiting System Overhaul
 
