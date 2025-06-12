@@ -408,7 +408,7 @@ export const Jobs: React.FC = () => {
 
       {/* Jobs List with integrated filters */}
       <div className="bg-white dark:bg-gray-900 shadow rounded-lg">
-        <div className="px-3 py-4">
+        <div className="px-6 py-4">
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-4 mb-4">
             <div className="flex-1">
@@ -427,7 +427,8 @@ export const Jobs: React.FC = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-800 dark:text-white"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-800 dark:text-white appearance-none bg-no-repeat bg-right"
+                style={{ backgroundImage: "url('data:image/svg+xml;charset=US-ASCII,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\"><path fill=\"none\" stroke=\"%23666\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M4 6l4 4 4-4\"/></svg>')", backgroundPosition: "right 12px center", backgroundSize: "16px" }}
               >
                 <option value="all">All Statuses</option>
                 <option value="QUEUED">Queued</option>
@@ -539,9 +540,8 @@ export const Jobs: React.FC = () => {
                             <div className="flex justify-end space-x-2">
                               <button
                                 onClick={() => navigate(`/jobs/${job.id}`)}
-                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg text-white bg-gray-600 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                               >
-                                <Eye className="w-3 h-3 mr-1" />
                                 Details
                               </button>
                               
@@ -627,9 +627,8 @@ export const Jobs: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => navigate(`/jobs/${job.id}`)}
-                          className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                          className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg text-white bg-gray-600 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                         >
-                          <Eye className="w-3 h-3 mr-1" />
                           Details
                         </button>
                         

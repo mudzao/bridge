@@ -241,6 +241,11 @@ export const api = {
       const response = await apiClient.get('/api/connectors/types');
       return response.data;
     },
+
+    testConfig: async (connectorData: { connectorType: string; config: any }) => {
+      const response = await apiClient.post('/api/connectors/test-config', connectorData);
+      return response.data;
+    },
   },
 
   // System

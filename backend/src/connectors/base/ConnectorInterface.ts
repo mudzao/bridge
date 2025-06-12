@@ -198,7 +198,9 @@ export enum EntityType {
   INCIDENTS = 'incidents',
   CHANGES = 'changes',
   PROBLEMS = 'problems',
-  RELEASES = 'releases'
+  RELEASES = 'releases',
+  PROJECTS = 'projects',
+  CMDB_ITEMS = 'cmdb_items'
 }
 
 export interface ConnectorError extends Error {

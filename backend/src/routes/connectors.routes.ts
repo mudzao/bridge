@@ -38,7 +38,7 @@ export async function connectorRoutes(fastify: FastifyInstance) {
           name,
           connectorType: connectorType as any,
           config,
-          status: 'DISABLED', // Start as disabled until tested
+          status: 'ACTIVE', // Start as active since config can be tested in wizard
         },
       });
 
@@ -340,6 +340,54 @@ export async function connectorRoutes(fastify: FastifyInstance) {
         success: false,
         error: 'INTERNAL_ERROR',
         message: 'Failed to fetch connector types',
+      });
+    }
+  });
+
+  // Test connector configuration without saving - FOR WIZARD
+  fastify.post('/connectors/test-config', {
+    preHandler: [authenticate]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { connectorType, config } = request.body as { connectorType: string; config: any };
+
+      // Validate connector type is supported
+      const supportedTypes = ConnectorService.getConnectorTypes().map(t => t.type);
+      if (!supportedTypes.includes(connectorType)) {
+        return reply.code(400).send({
+          success: false,
+          error: 'UNSUPPORTED_CONNECTOR',
+          message: `Connector type ${connectorType} is not supported. Only ${supportedTypes.join(', ')} are supported.`,
+        });
+      }
+
+      // Validate configuration
+      const validation = ConnectorService.validateConnectorConfig(connectorType, config);
+      if (!validation.valid) {
+        return reply.code(400).send({
+          success: false,
+          error: 'VALIDATION_ERROR',
+          message: 'Invalid connector configuration',
+          details: validation.errors,
+        });
+      }
+
+      // Create temporary connector instance and test
+      const connectorInstance = ConnectorService.createConnectorInstance(connectorType, config);
+      const testResult = await connectorInstance.testConnection();
+
+      const response: ApiResponse<TestConnectorResponse> = {
+        success: true,
+        data: testResult,
+      };
+
+      reply.send(response);
+    } catch (error) {
+      console.error('Error testing connector configuration:', error);
+      reply.code(500).send({
+        success: false,
+        error: 'INTERNAL_ERROR',
+        message: 'Failed to test connector configuration',
       });
     }
   });

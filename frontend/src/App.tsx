@@ -17,6 +17,8 @@ import { Jobs } from '@/pages/Jobs';
 import { JobDetailPage } from '@/pages/JobDetailPage';
 import { Settings } from '@/pages/Settings';
 import { NewJobWizardPage } from '@/pages/NewJobWizardPage';
+import { ConnectorsNewWizardPage } from '@/pages/ConnectorsNewWizardPage';
+import { ConnectorDetailPage } from '@/pages/ConnectorDetailPage';
 
 // Stores
 import { useAuthStore } from '@/stores/auth.store';
@@ -61,6 +63,8 @@ function App() {
             
             {/* Connectors */}
             <Route path="connectors" element={<Connectors />} />
+            <Route path="connectors/new" element={<ConnectorsNewWizardPage />} />
+            <Route path="connectors/:connectorId" element={<ConnectorDetailPage />} />
             
             {/* Settings */}
             <Route path="settings" element={<Settings />} />
